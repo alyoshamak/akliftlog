@@ -27,6 +27,7 @@ type SessionExercise = {
   position: number;
   target_sets: number;
   target_reps: number;
+  superset_group: number | null;
   exercise: { id: string; name: string; muscle_group: string; is_compound: boolean };
 };
 
