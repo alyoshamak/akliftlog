@@ -14,8 +14,33 @@ export default function History() {
   const { exercises, search } = useExercises();
   const [q, setQ] = useState("");
   const [picked, setPicked] = useState<Exercise | null>(null);
+  const [perfMap, setPerfMap] = useState<Record<string, LastPerformance>>({});
+  const [loadingPerf, setLoadingPerf] = useState(true);
 
-  const list = useMemo(() => (q.trim() ? search(q) : exercises).slice(0, 50), [q, exercises, search]);
+  useEffect(() => {
+    if (!user || exercises.length === 0) return;
+    (async () => {
+      setLoadingPerf(true);
+      const map = await fetchLastPerformanceMap(user.id, exercises.map((e) => e.id));
+      setPerfMap(map);
+      setLoadingPerf(false);
+    })();
+  }, [user, exercises]);
+
+  const performedExercises = useMemo(
+    () => exercises.filter((e) => perfMap[e.id]),
+    [exercises, perfMap]
+  );
+
+  const list = useMemo(() => {
+    const base = q.trim() ? search(q).filter((e) => perfMap[e.id]) : performedExercises;
+    // sort by most recent
+    return [...base].sort((a, b) => {
+      const ta = new Date(perfMap[a.id]?.performed_at ?? 0).getTime();
+      const tb = new Date(perfMap[b.id]?.performed_at ?? 0).getTime();
+      return tb - ta;
+    });
+  }, [q, performedExercises, search, perfMap]);
 
   if (picked && user) return <ExerciseDetail user={user} ex={picked} onBack={() => setPicked(null)} />;
 
@@ -23,7 +48,7 @@ export default function History() {
     <AppShell>
       <div className="px-4 pt-safe">
         <h1 className="pt-3 text-3xl font-extrabold tracking-tight">History</h1>
-        <p className="text-sm text-muted-foreground">Search any exercise to see your record.</p>
+        <p className="text-sm text-muted-foreground">Your completed exercises and last performance.</p>
         <div className="relative mt-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -34,18 +59,37 @@ export default function History() {
           />
         </div>
         <div className="mt-4 space-y-1">
-          {list.map((ex) => (
-            <button
-              key={ex.id}
-              onClick={() => setPicked(ex)}
-              className="w-full flex items-center justify-between rounded-xl px-3 py-3 tap-56 text-left hover:bg-surface-2"
-            >
-              <div>
-                <div className="font-semibold text-sm">{ex.name}</div>
-                <div className="text-xs text-muted-foreground capitalize">{ex.muscle_group}</div>
-              </div>
-            </button>
-          ))}
+          {!loadingPerf && list.length === 0 && (
+            <p className="text-sm text-muted-foreground px-1 py-6 text-center">
+              {q.trim() ? "No completed exercises match." : "No completed exercises yet. Finish a workout to see your history."}
+            </p>
+          )}
+          {list.map((ex) => {
+            const perf = perfMap[ex.id];
+            const topSet = perf?.sets?.[0];
+            return (
+              <button
+                key={ex.id}
+                onClick={() => setPicked(ex)}
+                className="w-full flex items-center justify-between gap-3 rounded-xl px-3 py-3 tap-56 text-left hover:bg-surface-2"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-sm truncate">{ex.name}</div>
+                  <div className="text-xs text-muted-foreground capitalize">{ex.muscle_group}</div>
+                </div>
+                {topSet && (
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-semibold num">
+                      {topSet.weight}{topSet.unit} × {topSet.reps}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {formatDistanceToNow(new Date(perf.performed_at))} ago
+                    </div>
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     </AppShell>
