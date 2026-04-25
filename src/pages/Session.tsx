@@ -438,12 +438,13 @@ export default function Session() {
 }
 
 function ExerciseCard({
-  ex, sets, last, reorderMode, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove,
+  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove,
 }: {
   ex: SessionExercise;
   sets: SetRow[];
   last?: LastPerformance;
   reorderMode: boolean;
+  supersetLetter?: string | null;
   onCheck: (idx: number) => void;
   onChangeWeight: (idx: number, w: number) => void;
   onChangeReps: (idx: number, r: number) => void;
@@ -467,6 +468,11 @@ function ExerciseCard({
           <button {...attributes} {...listeners} className="text-muted-foreground touch-none cursor-grab active:cursor-grabbing tap-44">
             <GripVertical className="h-4 w-4" />
           </button>
+        )}
+        {supersetLetter && (
+          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground text-xs font-extrabold">
+            {supersetLetter}
+          </span>
         )}
         <div className="flex-1 min-w-0">
           <div className="font-bold truncate">{ex.exercise.name}</div>
