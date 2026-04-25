@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Plus, Trash2, GripVertical, ChevronLeft, ChevronRight, Link2, Link2Off } from "lucide-react";
+import { Plus, Trash2, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import ExercisePicker from "@/components/ExercisePicker";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -370,7 +370,7 @@ export default function Plan() {
                         <div
                           className={
                             e.superset_group != null
-                              ? `relative ${linkedToPrev ? "" : "rounded-t-xl border-t-2"} ${linkedToNext ? "" : "rounded-b-xl border-b-2"} border-x-2 border-accent/40 bg-accent/5 px-1 ${linkedToPrev ? "-mt-2 pt-1" : "pt-1"} ${linkedToNext ? "pb-1" : "pb-1"}`
+                              ? `relative ${linkedToPrev ? "" : "rounded-t-xl border-t-2"} ${linkedToNext ? "" : "rounded-b-xl border-b-2"} border-x-2 border-accent/60 bg-accent/5 px-1 ${linkedToPrev ? "-mt-2 pt-0" : "pt-1"} pb-1`
                               : ""
                           }
                         >
@@ -384,27 +384,11 @@ export default function Plan() {
                             onUpdate={updateExercise}
                             onRemove={removeExercise}
                             supersetLetter={letter}
+                            canLinkNext={!!next}
+                            linkedToNext={!!linkedToNext}
+                            onToggleSuperset={() => toggleSupersetWithNext(i)}
                           />
                         </div>
-                        {next && (
-                          <div className="flex justify-center py-0.5">
-                            <button
-                              onClick={() => toggleSupersetWithNext(i)}
-                              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold tap-44 transition-colors ${
-                                linkedToNext
-                                  ? "bg-accent/20 text-accent hover:bg-accent/30"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                              }`}
-                              aria-label={linkedToNext ? "Unlink superset" : "Link as superset"}
-                            >
-                              {linkedToNext ? (
-                                <><Link2Off className="h-3 w-3" /> Unlink superset</>
-                              ) : (
-                                <><Link2 className="h-3 w-3" /> Superset with next</>
-                              )}
-                            </button>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -442,17 +426,20 @@ export default function Plan() {
 }
 
 function SortableRow({
-  item, onUpdate, onRemove, supersetLetter,
+  item, onUpdate, onRemove, supersetLetter, canLinkNext, linkedToNext, onToggleSuperset,
 }: {
   item: DayExercise;
   onUpdate: (id: string, patch: Partial<Omit<DayExercise, "exercise">>) => void;
   onRemove: (id: string) => void;
   supersetLetter?: string | null;
+  canLinkNext?: boolean;
+  linkedToNext?: boolean;
+  onToggleSuperset?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <div ref={setNodeRef} style={style} className="surface-card p-3">
+    <div ref={setNodeRef} style={style} className="surface-card p-3 relative">
       <div className="flex items-start gap-2">
         <button
           {...attributes}
@@ -481,18 +468,35 @@ function SortableRow({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
-      <div className="mt-2 flex items-center justify-end gap-1.5 pl-10">
-        <NumStepper
-          value={item.target_sets}
-          onChange={(v) => onUpdate(item.id, { target_sets: v })}
-          min={1} max={10} suffix="sets"
-        />
-        <span className="text-muted-foreground text-xs">×</span>
-        <NumStepper
-          value={item.target_reps}
-          onChange={(v) => onUpdate(item.id, { target_reps: v })}
-          min={1} max={50} suffix="reps"
-        />
+      <div className="mt-2 flex items-center justify-between gap-1.5 pl-10">
+        {canLinkNext ? (
+          <button
+            onClick={onToggleSuperset}
+            aria-label={linkedToNext ? "Unlink superset with next exercise" : "Superset with next exercise"}
+            title={linkedToNext ? "Unlink superset" : "Superset with next"}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base italic font-extrabold tap-44 transition-all ${
+              linkedToNext
+                ? "bg-accent text-accent-foreground shadow-[0_0_12px_hsl(var(--accent)/0.6)]"
+                : "bg-secondary text-muted-foreground hover:text-accent hover:bg-accent/10 border border-dashed border-border"
+            }`}
+            style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+          >
+            S
+          </button>
+        ) : <div className="w-8" />}
+        <div className="flex items-center gap-1.5">
+          <NumStepper
+            value={item.target_sets}
+            onChange={(v) => onUpdate(item.id, { target_sets: v })}
+            min={1} max={10} suffix="sets"
+          />
+          <span className="text-muted-foreground text-xs">×</span>
+          <NumStepper
+            value={item.target_reps}
+            onChange={(v) => onUpdate(item.id, { target_reps: v })}
+            min={1} max={50} suffix="reps"
+          />
+        </div>
       </div>
     </div>
   );
