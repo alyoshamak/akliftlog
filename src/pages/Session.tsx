@@ -166,7 +166,18 @@ export default function Session() {
       .select()
       .maybeSingle();
     if (error) return toast.error(error.message);
-    updateSet(ex.id, idx, { completed: true, id: data?.id });
+    // Mark this set complete and pre-fill the next uncompleted set with same weight/reps
+    setSetsByExercise((prev) => {
+      const cur = prev[ex.id] ?? [];
+      const updated = cur.map((s, i) => {
+        if (i === idx) return { ...s, completed: true, id: data?.id };
+        if (i === idx + 1 && !s.completed) {
+          return { ...s, weight: row.weight, reps: row.reps, unit: row.unit };
+        }
+        return s;
+      });
+      return { ...prev, [ex.id]: updated };
+    });
   };
 
   const addSetRow = (ex: SessionExercise) => {
