@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Plus, Trash2, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, GripVertical, ChevronLeft, ChevronRight, Link2, Link2Off } from "lucide-react";
 import ExercisePicker from "@/components/ExercisePicker";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -25,6 +25,7 @@ type DayExercise = {
   position: number;
   target_sets: number;
   target_reps: number;
+  superset_group: number | null;
   exercise: { id: string; name: string; muscle_group: string };
 };
 
