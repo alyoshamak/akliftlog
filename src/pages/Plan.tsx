@@ -303,20 +303,29 @@ function SortableRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <div ref={setNodeRef} style={style} className="surface-card flex items-center gap-2 p-3">
-      <button
-        {...attributes}
-        {...listeners}
-        className="flex h-10 w-8 items-center justify-center text-muted-foreground touch-none cursor-grab active:cursor-grabbing"
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
-      <div className="flex-1 min-w-0">
-        <div className="truncate font-semibold text-sm">{item.exercise.name}</div>
-        <div className="text-xs text-muted-foreground capitalize">{item.exercise.muscle_group}</div>
+    <div ref={setNodeRef} style={style} className="surface-card p-3">
+      <div className="flex items-start gap-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="flex h-10 w-8 shrink-0 items-center justify-center text-muted-foreground touch-none cursor-grab active:cursor-grabbing"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <div className="flex-1 min-w-0 py-1">
+          <div className="font-semibold text-sm leading-tight break-words">{item.exercise.name}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground capitalize">{item.exercise.muscle_group}</div>
+        </div>
+        <button
+          onClick={() => onRemove(item.id)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive tap-44"
+          aria-label="Remove"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
       </div>
-      <div className="flex items-center gap-1.5">
+      <div className="mt-2 flex items-center justify-end gap-1.5 pl-10">
         <NumStepper
           value={item.target_sets}
           onChange={(v) => onUpdate(item.id, { target_sets: v })}
@@ -329,13 +338,6 @@ function SortableRow({
           min={1} max={50} suffix="reps"
         />
       </div>
-      <button
-        onClick={() => onRemove(item.id)}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-destructive tap-44"
-        aria-label="Remove"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
     </div>
   );
 }
