@@ -1,0 +1,88 @@
+import AppShell from "@/components/AppShell";
+import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+
+export default function Profile() {
+  const { profile, update } = useProfile();
+  const { signOut, user } = useAuth();
+  const [name, setName] = useState("");
+
+  useEffect(() => { if (profile) setName(profile.display_name ?? ""); }, [profile]);
+
+  if (!profile) return <AppShell><div className="pt-20 text-center text-muted-foreground">Loading…</div></AppShell>;
+
+  const setGoal = (g: any) => update({ goal: g });
+  const setUnit = (u: any) => update({ unit_pref: u });
+  const setTheme = (t: any) => {
+    update({ theme: t });
+    document.documentElement.classList.toggle("dark", t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches));
+  };
+
+  return (
+    <AppShell>
+      <div className="px-4 pt-safe space-y-6">
+        <h1 className="pt-3 text-3xl font-extrabold tracking-tight">Profile</h1>
+
+        <div className="surface-card p-4">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Display name</Label>
+          <div className="mt-2 flex gap-2">
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="tap-44" />
+            <Button
+              onClick={async () => { await update({ display_name: name }); toast.success("Saved"); }}
+              className="tap-44"
+            >Save</Button>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">{user?.email}</div>
+        </div>
+
+        <Section title="Goal">
+          <Toggles options={[["hypertrophy","Hypertrophy"],["strength","Strength"],["endurance","Endurance"]]} value={profile.goal} onChange={setGoal} />
+        </Section>
+
+        <Section title="Units">
+          <Toggles options={[["lb","Pounds"],["kg","Kilograms"]]} value={profile.unit_pref} onChange={setUnit} />
+        </Section>
+
+        <Section title="Theme">
+          <Toggles options={[["dark","Dark"],["light","Light"],["system","System"]]} value={profile.theme} onChange={setTheme} />
+        </Section>
+
+        <Button
+          onClick={async () => { await signOut(); }}
+          variant="outline"
+          className="w-full tap-56"
+        >Sign out</Button>
+      </div>
+    </AppShell>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function Toggles({ options, value, onChange }: { options: [string, string][]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {options.map(([v, label]) => (
+        <button
+          key={v}
+          onClick={() => onChange(v)}
+          className={`tap-56 rounded-xl px-3 py-3 text-sm font-bold ${value === v ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
