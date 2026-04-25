@@ -393,11 +393,12 @@ export default function Plan() {
 }
 
 function SortableRow({
-  item, onUpdate, onRemove,
+  item, onUpdate, onRemove, supersetLetter,
 }: {
   item: DayExercise;
   onUpdate: (id: string, patch: Partial<Omit<DayExercise, "exercise">>) => void;
   onRemove: (id: string) => void;
+  supersetLetter?: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -413,7 +414,14 @@ function SortableRow({
           <GripVertical className="h-4 w-4" />
         </button>
         <div className="flex-1 min-w-0 py-1">
-          <div className="font-semibold text-sm leading-tight break-words">{item.exercise.name}</div>
+          <div className="flex items-center gap-1.5">
+            {supersetLetter && (
+              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground text-[11px] font-extrabold">
+                {supersetLetter}
+              </span>
+            )}
+            <div className="font-semibold text-sm leading-tight break-words">{item.exercise.name}</div>
+          </div>
           <div className="mt-0.5 text-xs text-muted-foreground capitalize">{item.exercise.muscle_group}</div>
         </div>
         <button
