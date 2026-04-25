@@ -179,3 +179,23 @@ export default function Upload() {
     </AppShell>
   );
 }
+
+function DraftStepper({ value, onChange, min, max, label }: { value: number; onChange: (v: number) => void; min: number; max: number; label: string }) {
+  return (
+    <div className="flex items-center rounded-lg bg-secondary">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        className="px-2 py-1.5 text-sm tap-44 font-bold"
+        aria-label={`Decrease ${label}`}
+      >−</button>
+      <div className="w-7 text-center text-sm font-bold num">{value}</div>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(max, value + 1))}
+        className="px-2 py-1.5 text-sm tap-44 font-bold"
+        aria-label={`Increase ${label}`}
+      >+</button>
+    </div>
+  );
+}
