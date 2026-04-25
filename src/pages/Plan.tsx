@@ -164,6 +164,49 @@ export default function Plan() {
     await supabase.from("plan_day_exercises").delete().eq("id", id);
   };
 
+  // Toggle superset link between exercise at index i and i+1.
+  // Linked consecutive rows share the same superset_group integer.
+  const toggleSupersetWithNext = async (i: number) => {
+    if (i < 0 || i >= exercises.length - 1) return;
+    const a = exercises[i];
+    const b = exercises[i + 1];
+    const linked = a.superset_group != null && a.superset_group === b.superset_group;
+
+    let next = [...exercises];
+    if (linked) {
+      // Unlink: clear b's group (and any further chain after b that matched).
+      const grp = a.superset_group;
+      // Walk forward from b while still in the same group, clear them.
+      let j = i + 1;
+      while (j < next.length && next[j].superset_group === grp) {
+        next[j] = { ...next[j], superset_group: null };
+        j++;
+      }
+      // If a is now the only one left with that group, clear it too.
+      const stillLinked = next.some((e, idx) => idx !== i && e.superset_group === grp);
+      if (!stillLinked) next[i] = { ...next[i], superset_group: null };
+    } else {
+      // Link: assign a shared group. Reuse a's group if it has one, else next available.
+      let grp = a.superset_group;
+      if (grp == null) {
+        const used = new Set(next.map((e) => e.superset_group).filter((g): g is number => g != null));
+        grp = 1;
+        while (used.has(grp)) grp++;
+        next[i] = { ...next[i], superset_group: grp };
+      }
+      next[i + 1] = { ...next[i + 1], superset_group: grp };
+    }
+
+    setExercises(next);
+    // Persist any changes vs. original
+    const changed = next.filter((e, idx) => e.superset_group !== exercises[idx].superset_group);
+    await Promise.all(
+      changed.map((e) =>
+        supabase.from("plan_day_exercises").update({ superset_group: e.superset_group }).eq("id", e.id)
+      )
+    );
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
