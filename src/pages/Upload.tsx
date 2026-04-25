@@ -129,21 +129,42 @@ export default function Upload() {
                 />
                 <div className="space-y-2">
                   {day.exercises.map((ex, ei) => (
-                    <div key={ei} className="flex items-center gap-2 text-sm">
-                      <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                      <Input
-                        value={ex.name}
-                        onChange={(e) => {
-                          const next = [...draft];
-                          next[di].exercises[ei] = { ...ex, name: e.target.value };
-                          // re-match
-                          const hits = search(e.target.value);
-                          next[di].exercises[ei].matched_id = hits[0]?.id;
-                          setDraft(next);
-                        }}
-                        className={`flex-1 ${ex.matched_id ? "" : "border-destructive"}`}
-                      />
-                      <span className="text-xs text-muted-foreground num">{ex.sets}×{ex.reps}</span>
+                    <div key={ei} className="space-y-2 rounded-lg bg-surface-2/40 p-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <Input
+                          value={ex.name}
+                          onChange={(e) => {
+                            const next = [...draft];
+                            next[di].exercises[ei] = { ...ex, name: e.target.value };
+                            const hits = search(e.target.value);
+                            next[di].exercises[ei].matched_id = hits[0]?.id;
+                            setDraft(next);
+                          }}
+                          className={`flex-1 ${ex.matched_id ? "" : "border-destructive"}`}
+                        />
+                      </div>
+                      <div className="flex items-center justify-end gap-1.5 pl-6">
+                        <DraftStepper
+                          value={ex.sets}
+                          onChange={(v) => {
+                            const next = [...draft];
+                            next[di].exercises[ei] = { ...ex, sets: v };
+                            setDraft(next);
+                          }}
+                          min={1} max={10} label="sets"
+                        />
+                        <span className="text-muted-foreground text-xs">×</span>
+                        <DraftStepper
+                          value={ex.reps}
+                          onChange={(v) => {
+                            const next = [...draft];
+                            next[di].exercises[ei] = { ...ex, reps: v };
+                            setDraft(next);
+                          }}
+                          min={1} max={50} label="reps"
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
