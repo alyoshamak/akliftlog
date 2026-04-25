@@ -96,6 +96,7 @@ export default function Home() {
           position: p.position,
           target_sets: p.target_sets,
           target_reps: p.target_reps,
+          superset_group: p.superset_group ?? null,
         }))
       );
     }

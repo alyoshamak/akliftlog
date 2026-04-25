@@ -54,6 +54,7 @@ export type Database = {
           exercise_id: string
           id: string
           position: number
+          superset_group: number | null
           target_reps: number
           target_sets: number
         }
@@ -63,6 +64,7 @@ export type Database = {
           exercise_id: string
           id?: string
           position?: number
+          superset_group?: number | null
           target_reps?: number
           target_sets?: number
         }
@@ -72,6 +74,7 @@ export type Database = {
           exercise_id?: string
           id?: string
           position?: number
+          superset_group?: number | null
           target_reps?: number
           target_sets?: number
         }
@@ -164,6 +167,7 @@ export type Database = {
           id: string
           position: number
           session_id: string
+          superset_group: number | null
           target_reps: number
           target_sets: number
         }
@@ -173,6 +177,7 @@ export type Database = {
           id?: string
           position?: number
           session_id: string
+          superset_group?: number | null
           target_reps?: number
           target_sets?: number
         }
@@ -182,6 +187,7 @@ export type Database = {
           id?: string
           position?: number
           session_id?: string
+          superset_group?: number | null
           target_reps?: number
           target_sets?: number
         }

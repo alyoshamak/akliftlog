@@ -27,6 +27,7 @@ type SessionExercise = {
   position: number;
   target_sets: number;
   target_reps: number;
+  superset_group: number | null;
   exercise: { id: string; name: string; muscle_group: string; is_compound: boolean };
 };
 
@@ -322,21 +323,79 @@ export default function Session() {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={exercises.map((e) => e.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-4 pt-3">
-              {exercises.map((ex) => (
-                <ExerciseCard
-                  key={ex.id}
-                  ex={ex}
-                  sets={setsByExercise[ex.id] ?? []}
-                  last={last[ex.exercise_id]}
-                  reorderMode={reorderMode}
-                  onCheck={(idx) => checkOff(ex, idx)}
-                  onChangeWeight={(idx, w) => updateSet(ex.id, idx, { weight: w })}
-                  onChangeReps={(idx, r) => updateSet(ex.id, idx, { reps: r })}
-                  onAddSet={() => addSetRow(ex)}
-                  onSwap={() => setSwapForId(ex.id)}
-                  onRemove={() => removeExercise(ex.id)}
-                />
-              ))}
+              {exercises.map((ex, i) => {
+                const prev = exercises[i - 1];
+                const next = exercises[i + 1];
+                const linkedToPrev = prev && prev.superset_group != null && prev.superset_group === ex.superset_group;
+                const linkedToNext = next && next.superset_group != null && next.superset_group === ex.superset_group;
+                const inSuperset = linkedToPrev || linkedToNext;
+                let letter: string | null = null;
+                if (inSuperset) {
+                  let pos = 0;
+                  for (let k = i; k >= 0; k--) {
+                    if (exercises[k].superset_group === ex.superset_group) pos++;
+                    else break;
+                  }
+                  letter = String.fromCharCode(64 + pos);
+                }
+                const card = (
+                  <ExerciseCard
+                    key={ex.id}
+                    ex={ex}
+                    sets={setsByExercise[ex.id] ?? []}
+                    last={last[ex.exercise_id]}
+                    reorderMode={reorderMode}
+                    supersetLetter={letter}
+                    onCheck={(idx) => checkOff(ex, idx)}
+                    onChangeWeight={(idx, w) => updateSet(ex.id, idx, { weight: w })}
+                    onChangeReps={(idx, r) => updateSet(ex.id, idx, { reps: r })}
+                    onAddSet={() => addSetRow(ex)}
+                    onSwap={() => setSwapForId(ex.id)}
+                    onRemove={() => removeExercise(ex.id)}
+                  />
+                );
+                // Open wrapper at start of group
+                if (inSuperset && !linkedToPrev) {
+                  // find end of group
+                  let endIdx = i;
+                  while (endIdx + 1 < exercises.length && exercises[endIdx + 1].superset_group === ex.superset_group) endIdx++;
+                  // Render the entire group here in a single wrapper
+                  return (
+                    <div key={`grp-${ex.superset_group}-${i}`} className="rounded-2xl border-2 border-accent/40 bg-accent/5 p-2 space-y-3">
+                      <div className="flex items-center justify-between px-2 pt-1">
+                        <div className="text-[11px] font-extrabold uppercase tracking-wider text-accent">
+                          Superset · alternate sets
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {endIdx - i + 1} exercises
+                        </div>
+                      </div>
+                      {exercises.slice(i, endIdx + 1).map((gex, gi) => {
+                        const gLetter = String.fromCharCode(65 + gi);
+                        return (
+                          <ExerciseCard
+                            key={gex.id}
+                            ex={gex}
+                            sets={setsByExercise[gex.id] ?? []}
+                            last={last[gex.exercise_id]}
+                            reorderMode={reorderMode}
+                            supersetLetter={gLetter}
+                            onCheck={(idx) => checkOff(gex, idx)}
+                            onChangeWeight={(idx, w) => updateSet(gex.id, idx, { weight: w })}
+                            onChangeReps={(idx, r) => updateSet(gex.id, idx, { reps: r })}
+                            onAddSet={() => addSetRow(gex)}
+                            onSwap={() => setSwapForId(gex.id)}
+                            onRemove={() => removeExercise(gex.id)}
+                          />
+                        );
+                      })}
+                    </div>
+                  );
+                }
+                // Skip rendering of items already rendered inside their group's wrapper
+                if (linkedToPrev) return null;
+                return card;
+              })}
             </div>
           </SortableContext>
         </DndContext>
@@ -379,12 +438,13 @@ export default function Session() {
 }
 
 function ExerciseCard({
-  ex, sets, last, reorderMode, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove,
+  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove,
 }: {
   ex: SessionExercise;
   sets: SetRow[];
   last?: LastPerformance;
   reorderMode: boolean;
+  supersetLetter?: string | null;
   onCheck: (idx: number) => void;
   onChangeWeight: (idx: number, w: number) => void;
   onChangeReps: (idx: number, r: number) => void;
@@ -408,6 +468,11 @@ function ExerciseCard({
           <button {...attributes} {...listeners} className="text-muted-foreground touch-none cursor-grab active:cursor-grabbing tap-44">
             <GripVertical className="h-4 w-4" />
           </button>
+        )}
+        {supersetLetter && (
+          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground text-xs font-extrabold">
+            {supersetLetter}
+          </span>
         )}
         <div className="flex-1 min-w-0">
           <div className="font-bold truncate">{ex.exercise.name}</div>

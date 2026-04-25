@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Plus, Trash2, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, GripVertical, ChevronLeft, ChevronRight, Link2, Link2Off } from "lucide-react";
 import ExercisePicker from "@/components/ExercisePicker";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -25,6 +25,7 @@ type DayExercise = {
   position: number;
   target_sets: number;
   target_reps: number;
+  superset_group: number | null;
   exercise: { id: string; name: string; muscle_group: string };
 };
 
@@ -163,6 +164,49 @@ export default function Plan() {
     await supabase.from("plan_day_exercises").delete().eq("id", id);
   };
 
+  // Toggle superset link between exercise at index i and i+1.
+  // Linked consecutive rows share the same superset_group integer.
+  const toggleSupersetWithNext = async (i: number) => {
+    if (i < 0 || i >= exercises.length - 1) return;
+    const a = exercises[i];
+    const b = exercises[i + 1];
+    const linked = a.superset_group != null && a.superset_group === b.superset_group;
+
+    let next = [...exercises];
+    if (linked) {
+      // Unlink: clear b's group (and any further chain after b that matched).
+      const grp = a.superset_group;
+      // Walk forward from b while still in the same group, clear them.
+      let j = i + 1;
+      while (j < next.length && next[j].superset_group === grp) {
+        next[j] = { ...next[j], superset_group: null };
+        j++;
+      }
+      // If a is now the only one left with that group, clear it too.
+      const stillLinked = next.some((e, idx) => idx !== i && e.superset_group === grp);
+      if (!stillLinked) next[i] = { ...next[i], superset_group: null };
+    } else {
+      // Link: assign a shared group. Reuse a's group if it has one, else next available.
+      let grp = a.superset_group;
+      if (grp == null) {
+        const used = new Set(next.map((e) => e.superset_group).filter((g): g is number => g != null));
+        grp = 1;
+        while (used.has(grp)) grp++;
+        next[i] = { ...next[i], superset_group: grp };
+      }
+      next[i + 1] = { ...next[i + 1], superset_group: grp };
+    }
+
+    setExercises(next);
+    // Persist any changes vs. original
+    const changed = next.filter((e, idx) => e.superset_group !== exercises[idx].superset_group);
+    await Promise.all(
+      changed.map((e) =>
+        supabase.from("plan_day_exercises").update({ superset_group: e.superset_group }).eq("id", e.id)
+      )
+    );
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -174,11 +218,60 @@ export default function Plan() {
     const oldIdx = exercises.findIndex((e) => e.id === active.id);
     const newIdx = exercises.findIndex((e) => e.id === over.id);
     const reordered = arrayMove(exercises, oldIdx, newIdx);
-    setExercises(reordered);
+
+    // Normalize superset groups: any group that is no longer a contiguous
+    // run of 2+ exercises gets cleared.
+    const groupRuns = new Map<number, number>();
+    for (let i = 0; i < reordered.length; i++) {
+      const g = reordered[i].superset_group;
+      if (g == null) continue;
+      const prevG = i > 0 ? reordered[i - 1].superset_group : null;
+      if (prevG !== g) groupRuns.set(g, (groupRuns.get(g) ?? 0));
+      // count contiguous run length keyed by group only if no break has happened
+    }
+    // Re-scan to count contiguous runs and detect breaks.
+    const orphanGroups = new Set<number>();
+    const seenStarts = new Map<number, number>(); // group -> start index of current run
+    for (let i = 0; i < reordered.length; i++) {
+      const g = reordered[i].superset_group;
+      if (g == null) continue;
+      const prevG = i > 0 ? reordered[i - 1].superset_group : null;
+      if (prevG !== g) {
+        // new run start; if group seen before, it's a broken/split group
+        if (seenStarts.has(g)) orphanGroups.add(g);
+        seenStarts.set(g, i);
+      }
+    }
+    // Also: a group whose only run has length 1 -> orphan
+    const runLengths = new Map<number, number>();
+    let curG: number | null = null;
+    let curLen = 0;
+    for (const e of reordered) {
+      if (e.superset_group === curG && curG != null) {
+        curLen++;
+      } else {
+        if (curG != null) runLengths.set(curG, Math.max(runLengths.get(curG) ?? 0, curLen));
+        curG = e.superset_group;
+        curLen = curG != null ? 1 : 0;
+      }
+    }
+    if (curG != null) runLengths.set(curG, Math.max(runLengths.get(curG) ?? 0, curLen));
+    for (const [g, len] of runLengths) if (len < 2) orphanGroups.add(g);
+
+    const normalized = reordered.map((e) =>
+      e.superset_group != null && orphanGroups.has(e.superset_group)
+        ? { ...e, superset_group: null }
+        : e
+    );
+
+    setExercises(normalized);
     await Promise.all(
-      reordered.map((e, i) =>
-        supabase.from("plan_day_exercises").update({ position: i }).eq("id", e.id)
-      )
+      normalized.map((e, i) => {
+        const orig = exercises.find((x) => x.id === e.id);
+        const patch: any = { position: i };
+        if (orig && orig.superset_group !== e.superset_group) patch.superset_group = e.superset_group;
+        return supabase.from("plan_day_exercises").update(patch).eq("id", e.id);
+      })
     );
   };
 
@@ -257,9 +350,64 @@ export default function Plan() {
             <div className="mt-4 space-y-2">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                 <SortableContext items={exercises.map((e) => e.id)} strategy={verticalListSortingStrategy}>
-                  {exercises.map((e) => (
-                    <SortableRow key={e.id} item={e} onUpdate={updateExercise} onRemove={removeExercise} />
-                  ))}
+                  {exercises.map((e, i) => {
+                    const prev = exercises[i - 1];
+                    const next = exercises[i + 1];
+                    const linkedToPrev = prev && prev.superset_group != null && prev.superset_group === e.superset_group;
+                    const linkedToNext = next && next.superset_group != null && next.superset_group === e.superset_group;
+                    // letter label within group
+                    let letter: string | null = null;
+                    if (e.superset_group != null) {
+                      let pos = 0;
+                      for (let k = i; k >= 0; k--) {
+                        if (exercises[k].superset_group === e.superset_group) pos++;
+                        else break;
+                      }
+                      letter = String.fromCharCode(64 + pos); // 1->A
+                    }
+                    return (
+                      <div key={e.id}>
+                        <div
+                          className={
+                            e.superset_group != null
+                              ? `relative ${linkedToPrev ? "" : "rounded-t-xl border-t-2"} ${linkedToNext ? "" : "rounded-b-xl border-b-2"} border-x-2 border-accent/40 bg-accent/5 px-1 ${linkedToPrev ? "-mt-2 pt-1" : "pt-1"} ${linkedToNext ? "pb-1" : "pb-1"}`
+                              : ""
+                          }
+                        >
+                          {e.superset_group != null && !linkedToPrev && (
+                            <div className="px-2 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+                              Superset
+                            </div>
+                          )}
+                          <SortableRow
+                            item={e}
+                            onUpdate={updateExercise}
+                            onRemove={removeExercise}
+                            supersetLetter={letter}
+                          />
+                        </div>
+                        {next && (
+                          <div className="flex justify-center py-0.5">
+                            <button
+                              onClick={() => toggleSupersetWithNext(i)}
+                              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold tap-44 transition-colors ${
+                                linkedToNext
+                                  ? "bg-accent/20 text-accent hover:bg-accent/30"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                              }`}
+                              aria-label={linkedToNext ? "Unlink superset" : "Link as superset"}
+                            >
+                              {linkedToNext ? (
+                                <><Link2Off className="h-3 w-3" /> Unlink superset</>
+                              ) : (
+                                <><Link2 className="h-3 w-3" /> Superset with next</>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </SortableContext>
               </DndContext>
 
@@ -294,11 +442,12 @@ export default function Plan() {
 }
 
 function SortableRow({
-  item, onUpdate, onRemove,
+  item, onUpdate, onRemove, supersetLetter,
 }: {
   item: DayExercise;
   onUpdate: (id: string, patch: Partial<Omit<DayExercise, "exercise">>) => void;
   onRemove: (id: string) => void;
+  supersetLetter?: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -314,7 +463,14 @@ function SortableRow({
           <GripVertical className="h-4 w-4" />
         </button>
         <div className="flex-1 min-w-0 py-1">
-          <div className="font-semibold text-sm leading-tight break-words">{item.exercise.name}</div>
+          <div className="flex items-center gap-1.5">
+            {supersetLetter && (
+              <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground text-[11px] font-extrabold">
+                {supersetLetter}
+              </span>
+            )}
+            <div className="font-semibold text-sm leading-tight break-words">{item.exercise.name}</div>
+          </div>
           <div className="mt-0.5 text-xs text-muted-foreground capitalize">{item.exercise.muscle_group}</div>
         </div>
         <button
