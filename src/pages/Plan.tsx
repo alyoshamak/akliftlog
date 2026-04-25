@@ -297,7 +297,7 @@ function SortableRow({
   item, onUpdate, onRemove,
 }: {
   item: DayExercise;
-  onUpdate: (id: string, patch: Partial<DayExercise>) => void;
+  onUpdate: (id: string, patch: Partial<Omit<DayExercise, "exercise">>) => void;
   onRemove: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
