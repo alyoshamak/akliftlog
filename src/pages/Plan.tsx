@@ -426,17 +426,20 @@ export default function Plan() {
 }
 
 function SortableRow({
-  item, onUpdate, onRemove, supersetLetter,
+  item, onUpdate, onRemove, supersetLetter, canLinkNext, linkedToNext, onToggleSuperset,
 }: {
   item: DayExercise;
   onUpdate: (id: string, patch: Partial<Omit<DayExercise, "exercise">>) => void;
   onRemove: (id: string) => void;
   supersetLetter?: string | null;
+  canLinkNext?: boolean;
+  linkedToNext?: boolean;
+  onToggleSuperset?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <div ref={setNodeRef} style={style} className="surface-card p-3">
+    <div ref={setNodeRef} style={style} className="surface-card p-3 relative">
       <div className="flex items-start gap-2">
         <button
           {...attributes}
@@ -465,18 +468,35 @@ function SortableRow({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
-      <div className="mt-2 flex items-center justify-end gap-1.5 pl-10">
-        <NumStepper
-          value={item.target_sets}
-          onChange={(v) => onUpdate(item.id, { target_sets: v })}
-          min={1} max={10} suffix="sets"
-        />
-        <span className="text-muted-foreground text-xs">×</span>
-        <NumStepper
-          value={item.target_reps}
-          onChange={(v) => onUpdate(item.id, { target_reps: v })}
-          min={1} max={50} suffix="reps"
-        />
+      <div className="mt-2 flex items-center justify-between gap-1.5 pl-10">
+        {canLinkNext ? (
+          <button
+            onClick={onToggleSuperset}
+            aria-label={linkedToNext ? "Unlink superset with next exercise" : "Superset with next exercise"}
+            title={linkedToNext ? "Unlink superset" : "Superset with next"}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base italic font-extrabold tap-44 transition-all ${
+              linkedToNext
+                ? "bg-accent text-accent-foreground shadow-[0_0_12px_hsl(var(--accent)/0.6)]"
+                : "bg-secondary text-muted-foreground hover:text-accent hover:bg-accent/10 border border-dashed border-border"
+            }`}
+            style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+          >
+            S
+          </button>
+        ) : <div className="w-8" />}
+        <div className="flex items-center gap-1.5">
+          <NumStepper
+            value={item.target_sets}
+            onChange={(v) => onUpdate(item.id, { target_sets: v })}
+            min={1} max={10} suffix="sets"
+          />
+          <span className="text-muted-foreground text-xs">×</span>
+          <NumStepper
+            value={item.target_reps}
+            onChange={(v) => onUpdate(item.id, { target_reps: v })}
+            min={1} max={50} suffix="reps"
+          />
+        </div>
       </div>
     </div>
   );
