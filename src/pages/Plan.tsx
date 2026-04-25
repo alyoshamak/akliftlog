@@ -218,11 +218,60 @@ export default function Plan() {
     const oldIdx = exercises.findIndex((e) => e.id === active.id);
     const newIdx = exercises.findIndex((e) => e.id === over.id);
     const reordered = arrayMove(exercises, oldIdx, newIdx);
-    setExercises(reordered);
+
+    // Normalize superset groups: any group that is no longer a contiguous
+    // run of 2+ exercises gets cleared.
+    const groupRuns = new Map<number, number>();
+    for (let i = 0; i < reordered.length; i++) {
+      const g = reordered[i].superset_group;
+      if (g == null) continue;
+      const prevG = i > 0 ? reordered[i - 1].superset_group : null;
+      if (prevG !== g) groupRuns.set(g, (groupRuns.get(g) ?? 0));
+      // count contiguous run length keyed by group only if no break has happened
+    }
+    // Re-scan to count contiguous runs and detect breaks.
+    const orphanGroups = new Set<number>();
+    const seenStarts = new Map<number, number>(); // group -> start index of current run
+    for (let i = 0; i < reordered.length; i++) {
+      const g = reordered[i].superset_group;
+      if (g == null) continue;
+      const prevG = i > 0 ? reordered[i - 1].superset_group : null;
+      if (prevG !== g) {
+        // new run start; if group seen before, it's a broken/split group
+        if (seenStarts.has(g)) orphanGroups.add(g);
+        seenStarts.set(g, i);
+      }
+    }
+    // Also: a group whose only run has length 1 -> orphan
+    const runLengths = new Map<number, number>();
+    let curG: number | null = null;
+    let curLen = 0;
+    for (const e of reordered) {
+      if (e.superset_group === curG && curG != null) {
+        curLen++;
+      } else {
+        if (curG != null) runLengths.set(curG, Math.max(runLengths.get(curG) ?? 0, curLen));
+        curG = e.superset_group;
+        curLen = curG != null ? 1 : 0;
+      }
+    }
+    if (curG != null) runLengths.set(curG, Math.max(runLengths.get(curG) ?? 0, curLen));
+    for (const [g, len] of runLengths) if (len < 2) orphanGroups.add(g);
+
+    const normalized = reordered.map((e) =>
+      e.superset_group != null && orphanGroups.has(e.superset_group)
+        ? { ...e, superset_group: null }
+        : e
+    );
+
+    setExercises(normalized);
     await Promise.all(
-      reordered.map((e, i) =>
-        supabase.from("plan_day_exercises").update({ position: i }).eq("id", e.id)
-      )
+      normalized.map((e, i) => {
+        const orig = exercises.find((x) => x.id === e.id);
+        const patch: any = { position: i };
+        if (orig && orig.superset_group !== e.superset_group) patch.superset_group = e.superset_group;
+        return supabase.from("plan_day_exercises").update(patch).eq("id", e.id);
+      })
     );
   };
 
