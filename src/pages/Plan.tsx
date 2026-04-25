@@ -153,7 +153,7 @@ export default function Plan() {
     if (data) setExercises([...exercises, data as any]);
   };
 
-  const updateExercise = async (id: string, patch: Partial<DayExercise>) => {
+  const updateExercise = async (id: string, patch: Partial<Omit<DayExercise, "exercise">>) => {
     setExercises(exercises.map((e) => (e.id === id ? { ...e, ...patch } : e)));
     await supabase.from("plan_day_exercises").update(patch).eq("id", id);
   };
