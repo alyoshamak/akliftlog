@@ -370,7 +370,7 @@ export default function Plan() {
                         <div
                           className={
                             e.superset_group != null
-                              ? `relative ${linkedToPrev ? "" : "rounded-t-xl border-t-2"} ${linkedToNext ? "" : "rounded-b-xl border-b-2"} border-x-2 border-accent/40 bg-accent/5 px-1 ${linkedToPrev ? "-mt-2 pt-1" : "pt-1"} ${linkedToNext ? "pb-1" : "pb-1"}`
+                              ? `relative ${linkedToPrev ? "" : "rounded-t-xl border-t-2"} ${linkedToNext ? "" : "rounded-b-xl border-b-2"} border-x-2 border-accent/60 bg-accent/5 px-1 ${linkedToPrev ? "-mt-2 pt-0" : "pt-1"} pb-1`
                               : ""
                           }
                         >
@@ -384,27 +384,11 @@ export default function Plan() {
                             onUpdate={updateExercise}
                             onRemove={removeExercise}
                             supersetLetter={letter}
+                            canLinkNext={!!next}
+                            linkedToNext={!!linkedToNext}
+                            onToggleSuperset={() => toggleSupersetWithNext(i)}
                           />
                         </div>
-                        {next && (
-                          <div className="flex justify-center py-0.5">
-                            <button
-                              onClick={() => toggleSupersetWithNext(i)}
-                              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold tap-44 transition-colors ${
-                                linkedToNext
-                                  ? "bg-accent/20 text-accent hover:bg-accent/30"
-                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                              }`}
-                              aria-label={linkedToNext ? "Unlink superset" : "Link as superset"}
-                            >
-                              {linkedToNext ? (
-                                <><Link2Off className="h-3 w-3" /> Unlink superset</>
-                              ) : (
-                                <><Link2 className="h-3 w-3" /> Superset with next</>
-                              )}
-                            </button>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
