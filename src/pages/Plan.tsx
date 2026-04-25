@@ -301,9 +301,64 @@ export default function Plan() {
             <div className="mt-4 space-y-2">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                 <SortableContext items={exercises.map((e) => e.id)} strategy={verticalListSortingStrategy}>
-                  {exercises.map((e) => (
-                    <SortableRow key={e.id} item={e} onUpdate={updateExercise} onRemove={removeExercise} />
-                  ))}
+                  {exercises.map((e, i) => {
+                    const prev = exercises[i - 1];
+                    const next = exercises[i + 1];
+                    const linkedToPrev = prev && prev.superset_group != null && prev.superset_group === e.superset_group;
+                    const linkedToNext = next && next.superset_group != null && next.superset_group === e.superset_group;
+                    // letter label within group
+                    let letter: string | null = null;
+                    if (e.superset_group != null) {
+                      let pos = 0;
+                      for (let k = i; k >= 0; k--) {
+                        if (exercises[k].superset_group === e.superset_group) pos++;
+                        else break;
+                      }
+                      letter = String.fromCharCode(64 + pos); // 1->A
+                    }
+                    return (
+                      <div key={e.id}>
+                        <div
+                          className={
+                            e.superset_group != null
+                              ? `relative ${linkedToPrev ? "" : "rounded-t-xl border-t-2"} ${linkedToNext ? "" : "rounded-b-xl border-b-2"} border-x-2 border-accent/40 bg-accent/5 px-1 ${linkedToPrev ? "-mt-2 pt-1" : "pt-1"} ${linkedToNext ? "pb-1" : "pb-1"}`
+                              : ""
+                          }
+                        >
+                          {e.superset_group != null && !linkedToPrev && (
+                            <div className="px-2 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-accent">
+                              Superset
+                            </div>
+                          )}
+                          <SortableRow
+                            item={e}
+                            onUpdate={updateExercise}
+                            onRemove={removeExercise}
+                            supersetLetter={letter}
+                          />
+                        </div>
+                        {next && (
+                          <div className="flex justify-center py-0.5">
+                            <button
+                              onClick={() => toggleSupersetWithNext(i)}
+                              className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold tap-44 transition-colors ${
+                                linkedToNext
+                                  ? "bg-accent/20 text-accent hover:bg-accent/30"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                              }`}
+                              aria-label={linkedToNext ? "Unlink superset" : "Link as superset"}
+                            >
+                              {linkedToNext ? (
+                                <><Link2Off className="h-3 w-3" /> Unlink superset</>
+                              ) : (
+                                <><Link2 className="h-3 w-3" /> Superset with next</>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </SortableContext>
               </DndContext>
 
