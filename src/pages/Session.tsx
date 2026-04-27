@@ -135,7 +135,7 @@ export default function Session() {
       setSetsByExercise(rows);
       setLoading(false);
     })();
-  }, [sessionId, user]);
+  }, [sessionId, user?.id]);
 
   const updateSet = (exId: string, idx: number, patch: Partial<SetRow>) => {
     setSetsByExercise((prev) => ({
