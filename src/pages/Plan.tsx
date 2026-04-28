@@ -370,7 +370,7 @@ export default function Plan() {
                         <div
                           className={
                             e.superset_group != null
-                              ? `relative ${linkedToPrev ? "" : "rounded-t-xl border-t-2"} ${linkedToNext ? "" : "rounded-b-xl border-b-2"} border-x-2 border-accent/60 bg-accent/5 px-1 ${linkedToPrev ? "-mt-2 pt-0" : "pt-1"} pb-1`
+                              ? `relative ${linkedToPrev ? "" : "rounded-t-xl border-t-2"} ${linkedToNext ? "" : "rounded-b-xl border-b-2"} border-x-2 border-accent/60 bg-accent/5 px-2 ${linkedToPrev ? "-mt-2 pt-0" : "pt-1"} pb-1`
                               : ""
                           }
                         >
@@ -468,13 +468,13 @@ function SortableRow({
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
-      <div className="mt-2 flex items-center justify-between gap-1.5 pl-10">
+      <div className="mt-2 flex flex-wrap items-center justify-end gap-1.5 pl-10">
         {canLinkNext ? (
           <button
             onClick={onToggleSuperset}
             aria-label={linkedToNext ? "Unlink superset with next exercise" : "Superset with next exercise"}
             title={linkedToNext ? "Unlink superset" : "Superset with next"}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base italic font-extrabold tap-44 transition-all ${
+            className={`mr-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-base italic font-extrabold tap-44 transition-all ${
               linkedToNext
                 ? "bg-accent text-accent-foreground shadow-[0_0_12px_hsl(var(--accent)/0.6)]"
                 : "bg-secondary text-muted-foreground hover:text-accent hover:bg-accent/10 border border-dashed border-border"
@@ -483,8 +483,8 @@ function SortableRow({
           >
             S
           </button>
-        ) : <div className="w-8" />}
-        <div className="flex items-center gap-1.5">
+        ) : <div className="mr-auto w-8" />}
+        <div className="flex items-center gap-1.5 min-w-0">
           <NumStepper
             value={item.target_sets}
             onChange={(v) => onUpdate(item.id, { target_sets: v })}
