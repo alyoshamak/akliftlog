@@ -5,13 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { fetchLastPerformanceMap, suggestSet, type LastPerformance } from "@/lib/lastPerformance";
-import { ChevronLeft, MoreHorizontal, Plus, Check, Replace, Trash2, GripVertical } from "lucide-react";
+import { ChevronLeft, MoreHorizontal, Plus, Check, Replace, Trash2, GripVertical, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ExercisePicker from "@/components/ExercisePicker";
+import ExerciseNotesDialog from "@/components/ExerciseNotesDialog";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   DragEndEvent, KeyboardSensor,
