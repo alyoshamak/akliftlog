@@ -382,6 +382,7 @@ export default function Session() {
                     onSwap={() => setSwapForId(ex.id)}
                     onRemove={() => removeExercise(ex.id)}
                     onNotes={() => setNotesFor({ id: ex.exercise_id, name: ex.exercise.name })}
+                    noteCount={noteCounts[ex.exercise_id] ?? 0}
                   />
                 );
                 // Open wrapper at start of group
