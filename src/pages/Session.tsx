@@ -80,6 +80,7 @@ export default function Session() {
         return;
       }
       setStartedAt(session?.started_at ?? null);
+      setPlanDayId((session as any)?.plan_day_id ?? null);
 
       const { data: exs } = await supabase
         .from("session_exercises")
