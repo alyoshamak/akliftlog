@@ -13,7 +13,7 @@ const items = [
 export default function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur pb-safe">
-      <div className="mx-auto flex max-w-md items-stretch justify-around px-2 pt-1">
+      <div className="mx-auto flex max-w-md items-stretch justify-around px-2">
         {items.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
@@ -21,7 +21,7 @@ export default function BottomNav() {
             end={end}
             className={({ isActive }) =>
               cn(
-                "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium tap-44 rounded-lg transition-colors",
+                "flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-[11px] font-medium tap-44 rounded-lg transition-colors",
                 isActive ? "text-accent" : "text-muted-foreground hover:text-foreground"
               )
             }
