@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      exercise_notes: {
+        Row: {
+          created_at: string
+          difficulty: number | null
+          exercise_id: string
+          id: string
+          note: string
+          session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: number | null
+          exercise_id: string
+          id?: string
+          note?: string
+          session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: number | null
+          exercise_id?: string
+          id?: string
+          note?: string
+          session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       exercises: {
         Row: {
           aliases: string[]
