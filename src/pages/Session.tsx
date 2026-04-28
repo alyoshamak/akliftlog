@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import ExercisePicker from "@/components/ExercisePicker";
 import ExerciseNotesDialog from "@/components/ExerciseNotesDialog";
+import LeaveWorkoutDialog from "@/components/LeaveWorkoutDialog";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   DragEndEvent, KeyboardSensor,
@@ -354,10 +355,16 @@ export default function Session() {
     nav("/", { replace: true });
   };
 
+  const [leaveOpen, setLeaveOpen] = useState(false);
+
+  const pauseWorkout = () => {
+    nav("/", { replace: true });
+  };
+
   const cancelWorkout = async () => {
     if (!sessionId) return;
-    if (!confirm("Discard this workout? All logged sets will be lost.")) return;
     await supabase.from("workout_sessions").delete().eq("id", sessionId);
+    toast.success("Workout discarded");
     nav("/", { replace: true });
   };
 
@@ -371,8 +378,8 @@ export default function Session() {
     <div className="mx-auto flex min-h-full max-w-md flex-col bg-background">
       <header className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border pt-safe">
         <div className="flex items-center justify-between px-3 py-2">
-          <button onClick={cancelWorkout} className="flex items-center gap-1 text-sm text-muted-foreground tap-44 px-2">
-            <ChevronLeft className="h-4 w-4" /> Cancel
+          <button onClick={() => setLeaveOpen(true)} className="flex items-center gap-1 text-sm text-muted-foreground tap-44 px-2">
+            <ChevronLeft className="h-4 w-4" /> Leave
           </button>
           <div className="text-xs text-muted-foreground">
             {startedAt && <span>Started {formatDistanceToNow(new Date(startedAt))} ago</span>}
@@ -503,6 +510,13 @@ export default function Session() {
             addExercise(ex);
           }
         }}
+      />
+
+      <LeaveWorkoutDialog
+        open={leaveOpen}
+        onOpenChange={setLeaveOpen}
+        onPause={pauseWorkout}
+        onCancel={cancelWorkout}
       />
 
       {notesFor && (

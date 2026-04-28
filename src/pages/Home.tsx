@@ -9,6 +9,17 @@ import { computeNextDayNumber } from "@/lib/nextUp";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ChevronRight, Dumbbell, Flame, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { useActiveSession } from "@/hooks/useActiveSession";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Day = { id: string; day_number: number; name: string | null; exercise_count: number };
 
@@ -23,6 +34,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [recentCount, setRecentCount] = useState(0);
+  const { session: activeSession, refresh: refreshActive, discard: discardActive } = useActiveSession();
+  const [pendingStart, setPendingStart] = useState<null | (() => void | Promise<unknown>)>(null);
 
   // Onboarding redirect
   useEffect(() => {
@@ -72,7 +85,15 @@ export default function Home() {
     })();
   }, [user]);
 
-  const startDay = async (day: Day) => {
+  const guardStart = (run: () => void | Promise<unknown>) => {
+    if (activeSession) {
+      setPendingStart(() => run);
+      return;
+    }
+    run();
+  };
+
+  const doStartDay = async (day: Day) => {
     if (!user) return;
     const { data, error } = await supabase
       .from("workout_sessions")
@@ -103,7 +124,7 @@ export default function Home() {
     nav(`/session/${data.id}`);
   };
 
-  const startFreeWorkout = async () => {
+  const doStartFree = async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from("workout_sessions")
@@ -113,6 +134,9 @@ export default function Home() {
     if (error || !data) return toast.error(error?.message ?? "Could not start session");
     nav(`/session/${data.id}`);
   };
+
+  const startDay = (day: Day) => guardStart(() => doStartDay(day));
+  const startFreeWorkout = () => guardStart(() => doStartFree());
 
   if (loading || profLoading) {
     return <AppShell><div className="flex h-full items-center justify-center pt-20"><div className="h-8 w-8 animate-pulse rounded-full bg-accent" /></div></AppShell>;
@@ -213,6 +237,41 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!pendingStart} onOpenChange={(o) => { if (!o) setPendingStart(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>You already have a workout in progress</AlertDialogTitle>
+            <AlertDialogDescription>
+              Resume it, or discard it to start a new one.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <AlertDialogAction
+              onClick={() => {
+                if (activeSession) nav(`/session/${activeSession.id}`);
+                setPendingStart(null);
+              }}
+              className="bg-accent text-accent-foreground hover:bg-accent-glow"
+            >
+              Resume in-progress workout
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={async () => {
+                const run = pendingStart;
+                await discardActive();
+                await refreshActive();
+                setPendingStart(null);
+                if (run) await run();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard & start new
+            </AlertDialogAction>
+            <AlertDialogCancel>Never mind</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

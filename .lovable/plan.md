@@ -1,59 +1,75 @@
 ## Goal
 
-On the active workout screen, surface a subtle visual indicator on any exercise that already has at least one historical note — so the user remembers to peek at the last note before starting that exercise. No indicator at all on exercises without notes.
+Let users step away from a workout without losing it. Leaving the workout opens a dialog asking whether to **Pause** (keep it running) or **Cancel** (discard it). When a workout is paused, a persistent **Resume / Cancel** banner appears on every other screen so they can jump back in.
 
-## Recommended UI pattern
+## How it will work
 
-A small **sticky-note icon pill next to the exercise name**, tappable as a shortcut to open the notes dialog directly.
+### 1. Leaving a workout
+
+Today the top-left button on the workout screen is labeled "Cancel" and immediately discards the workout (after a confirm). We'll change that exit path so it opens a clear two-choice dialog:
 
 ```text
-┌─────────────────────────────────────────────┐
-│ A  Bench Press   [📝 3]              ⋯       │
-│    Last: 135 lb × 8                          │
-└─────────────────────────────────────────────┘
+┌───────────────────────────────────────┐
+│  Leave this workout?                  │
+│                                       │
+│  Pause it so you can come back, or    │
+│  cancel and discard your progress.    │
+│                                       │
+│  [ Pause workout ]  ← primary         │
+│  [ Cancel workout ]  ← destructive    │
+│  [ Keep training ]   ← dismiss        │
+└───────────────────────────────────────┘
 ```
 
-- Icon: `StickyNote` (already imported), in accent color so it pops against the muted "Last: …" line.
-- Optional count badge (e.g. "3") so the user knows roughly how much history exists. If count feels noisy, we can drop it and show the icon only.
-- Tapping the pill opens the existing `ExerciseNotesDialog` directly (same handler as the dropdown's "Add/View notes"), saving a tap vs. going through the ⋯ menu.
-- Hidden entirely when the exercise has zero notes — keeps the row clean and makes the badge meaningful.
+- **Pause workout** → just navigates to Home. Nothing is deleted; the `workout_sessions` row stays open (no `finished_at`), so all logged sets are preserved.
+- **Cancel workout** → deletes the session and its sets (current behavior), then navigates Home.
+- **Keep training** → closes the dialog.
 
-### Why this over alternatives
+The header label changes from "Cancel" to "Leave" to match the new behavior. Browser back / hardware back also triggers this same dialog.
 
-- **Dot on the ⋯ button**: discoverable only if you already look at the menu — defeats the "remind me" purpose.
-- **Inline note text under the title**: takes vertical space on every exercise that has notes, competes with the "Last: …" line which is more actionable mid-set.
-- **Toast/banner on session load**: too aggressive, easy to dismiss and forget.
+### 2. Resume banner
 
-The pill next to the name is glanceable, scoped to the right exercise, and doubles as a one-tap shortcut.
+A small banner appears at the top of the app on every screen **except** the active workout screen and the auth/onboarding screens, whenever the user has an unfinished `workout_sessions` row.
 
-## Implementation outline (technical)
+```text
+┌─────────────────────────────────────────────────┐
+│ ▶ Workout in progress · Day 3 · 12 min          │
+│   [ Resume ]                          [ × ]     │
+└─────────────────────────────────────────────────┘
+```
 
-1. **Fetch note counts per exercise on session load** in `src/pages/Session.tsx`:
-   - After `exercises` are loaded, run one query:
-     ```ts
-     supabase
-       .from("exercise_notes")
-       .select("exercise_id")
-       .eq("user_id", user.id)
-       .in("exercise_id", exerciseIds)
-     ```
-   - Reduce into `Record<exercise_id, number>` and store as `noteCounts` state.
-2. **Pass `noteCount` into `ExerciseCard`** alongside `last`.
-3. **Render the pill** in the card header (between the title block and the ⋯ menu) only when `noteCount > 0`:
-   ```tsx
-   {noteCount > 0 && (
-     <button
-       onClick={onNotes}
-       className="inline-flex items-center gap-1 rounded-full bg-accent/15 text-accent px-2 py-1 text-xs font-bold tap-44"
-       aria-label={`${noteCount} note${noteCount > 1 ? "s" : ""}`}
-     >
-       <StickyNote className="h-3.5 w-3.5" />
-       {noteCount}
-     </button>
-   )}
-   ```
-4. **Keep counts fresh**: when `ExerciseNotesDialog` closes, increment/refetch the count for that exercise so newly added notes immediately surface the badge (and deletes that empty history hide it).
+- **Resume** → navigates back to `/session/{id}`.
+- **×** → opens the same Cancel-workout confirmation (so users can ditch a forgotten paused session from anywhere).
+- The banner shows the day name (or "Free workout") and how long ago it was started.
+
+### 3. Edge cases handled
+
+- If the user starts a new workout while one is already paused, we'll prompt: "You already have a workout in progress. Resume it or discard it first?" — prevents two open sessions at once.
+- If multiple unfinished sessions somehow exist, the banner uses the most recent one.
+- The banner re-checks for an active session on route changes and after auth state changes, so it appears/disappears correctly without a refresh.
+
+## Technical details
+
+- **No database changes.** `workout_sessions.finished_at IS NULL` is already the exact "paused / in progress" signal.
+- **New hook `useActiveSession`** (`src/hooks/useActiveSession.ts`): subscribes once per signed-in user, queries the most recent unfinished session (with its `plan_day_id` → day name) and exposes `{ session, refresh, discard }`. Re-runs on route change.
+- **New `LeaveWorkoutDialog`** component used by `Session.tsx`. Replaces the current `confirm()` in `cancelWorkout`. Wired to:
+  - The header's left button (renamed to "Leave").
+  - A `useBlocker`/`beforeunload` handler so browser back also opens it.
+- **New `ResumeWorkoutBanner`** component rendered inside `AppShell` (above `<main>`). It uses `useActiveSession`, hides itself on `/session/*`, `/auth`, `/onboarding`. Adjusts the existing `pb-24` spacing so the banner doesn't overlap content (add a small top offset when visible).
+- **Home `startDay` / `startFreeWorkout`** check `useActiveSession` first; if one exists, show a small dialog offering Resume or Discard before creating a new session.
+- All copy uses existing semantic tokens (`bg-accent`, `text-muted-foreground`, `surface-card`, etc.) — no new colors.
+
+## Files touched
+
+- `src/hooks/useActiveSession.ts` (new)
+- `src/components/ResumeWorkoutBanner.tsx` (new)
+- `src/components/LeaveWorkoutDialog.tsx` (new)
+- `src/components/AppShell.tsx` (render banner)
+- `src/pages/Session.tsx` (swap confirm for dialog, rename button, block back-nav)
+- `src/pages/Home.tsx` (guard against starting a 2nd session)
 
 ## Open question
 
-- Show a **count number** next to the icon, or **icon-only**? I'd default to count — it gives a sense of how much history is there without opening the dialog.
+One small choice worth your call before I build:
+
+- **Banner position:** top of the screen (just under the status bar) **or** floating just above the bottom nav? Top is more visible; bottom keeps it out of the way of page headers. I'd recommend **top** — it matches how Spotify/Strava surface "in progress" sessions and is harder to miss.
