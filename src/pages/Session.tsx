@@ -543,7 +543,7 @@ function ExerciseCard({
         {noteCount > 0 && (
           <button
             onClick={onNotes}
-            className="inline-flex items-center gap-1 rounded-full bg-accent/15 text-accent px-2 py-1 text-xs font-bold tap-44 hover:bg-accent/25"
+            className="shrink-0 inline-flex items-center gap-1 rounded-full bg-accent/15 text-accent px-2 py-1 text-xs font-bold tap-44 hover:bg-accent/25"
             aria-label={`${noteCount} note${noteCount > 1 ? "s" : ""} — view`}
             title="View notes"
           >
@@ -552,8 +552,12 @@ function ExerciseCard({
           </button>
         )}
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground tap-44">
-            <MoreHorizontal className="h-5 w-5" />
+          <DropdownMenuTrigger
+            className="relative z-10 shrink-0 flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 active:bg-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            aria-label="Exercise options"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="h-5 w-5 pointer-events-none" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={onNotes}>
