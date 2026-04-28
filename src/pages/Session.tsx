@@ -57,6 +57,7 @@ export default function Session() {
   const [reorderMode, setReorderMode] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [planDayId, setPlanDayId] = useState<string | null>(null);
 
   const unit = profile?.unit_pref ?? "lb";
   const goal = profile?.goal ?? "hypertrophy";
