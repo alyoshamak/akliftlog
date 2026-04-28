@@ -85,7 +85,15 @@ export default function Home() {
     })();
   }, [user]);
 
-  const startDay = async (day: Day) => {
+  const guardStart = (run: () => Promise<void>) => {
+    if (activeSession) {
+      setPendingStart(() => run);
+      return;
+    }
+    run();
+  };
+
+  const doStartDay = async (day: Day) => {
     if (!user) return;
     const { data, error } = await supabase
       .from("workout_sessions")
@@ -116,7 +124,7 @@ export default function Home() {
     nav(`/session/${data.id}`);
   };
 
-  const startFreeWorkout = async () => {
+  const doStartFree = async () => {
     if (!user) return;
     const { data, error } = await supabase
       .from("workout_sessions")
@@ -126,6 +134,9 @@ export default function Home() {
     if (error || !data) return toast.error(error?.message ?? "Could not start session");
     nav(`/session/${data.id}`);
   };
+
+  const startDay = (day: Day) => guardStart(() => doStartDay(day));
+  const startFreeWorkout = () => guardStart(() => doStartFree());
 
   if (loading || profLoading) {
     return <AppShell><div className="flex h-full items-center justify-center pt-20"><div className="h-8 w-8 animate-pulse rounded-full bg-accent" /></div></AppShell>;
