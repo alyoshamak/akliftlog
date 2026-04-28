@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import ExercisePicker from "@/components/ExercisePicker";
 import ExerciseNotesDialog from "@/components/ExerciseNotesDialog";
+import LeaveWorkoutDialog from "@/components/LeaveWorkoutDialog";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   DragEndEvent, KeyboardSensor,
@@ -354,10 +355,16 @@ export default function Session() {
     nav("/", { replace: true });
   };
 
+  const [leaveOpen, setLeaveOpen] = useState(false);
+
+  const pauseWorkout = () => {
+    nav("/", { replace: true });
+  };
+
   const cancelWorkout = async () => {
     if (!sessionId) return;
-    if (!confirm("Discard this workout? All logged sets will be lost.")) return;
     await supabase.from("workout_sessions").delete().eq("id", sessionId);
+    toast.success("Workout discarded");
     nav("/", { replace: true });
   };
 
