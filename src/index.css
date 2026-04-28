@@ -95,6 +95,49 @@
     --shadow-glow: 0 0 32px hsl(var(--accent) / 0.45);
     --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-glow)));
   }
+
+  /* Wild — neon arcade theme */
+  .wild {
+    --background: 270 60% 8%;
+    --foreground: 60 100% 92%;
+
+    --card: 275 55% 12%;
+    --card-foreground: 60 100% 95%;
+
+    --popover: 275 55% 12%;
+    --popover-foreground: 60 100% 95%;
+
+    --primary: 320 100% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 280 50% 20%;
+    --secondary-foreground: 180 100% 80%;
+
+    --muted: 275 40% 18%;
+    --muted-foreground: 285 40% 75%;
+
+    --accent: 180 100% 55%;
+    --accent-foreground: 270 60% 8%;
+    --accent-glow: 180 100% 70%;
+
+    --success: 130 100% 55%;
+    --success-foreground: 270 60% 8%;
+
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 320 80% 45%;
+    --input: 280 50% 20%;
+    --ring: 60 100% 60%;
+
+    --surface-1: 275 55% 12%;
+    --surface-2: 280 55% 16%;
+    --surface-3: 285 50% 22%;
+
+    --shadow-card: 0 0 0 1px hsl(320 100% 60% / 0.3), 0 8px 24px hsl(280 100% 50% / 0.35);
+    --shadow-glow: 0 0 28px hsl(180 100% 55% / 0.7), 0 0 12px hsl(320 100% 60% / 0.6);
+    --gradient-accent: linear-gradient(135deg, hsl(320 100% 60%), hsl(180 100% 55%) 50%, hsl(60 100% 60%));
+  }
 }
 
 @layer base {

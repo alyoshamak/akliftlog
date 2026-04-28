@@ -1,75 +1,46 @@
-## Goal
+## Add a "Wild" retro arcade theme
 
-Let users step away from a workout without losing it. Leaving the workout opens a dialog asking whether to **Pause** (keep it running) or **Cancel** (discard it). When a workout is paused, a persistent **Resume / Cancel** banner appears on every other screen so they can jump back in.
+Add a 4th theme option alongside Dark, Light, and Auto. "Wild" will look like an old-school video game — neon colors, deep purple/black background, hot pink + cyan + electric yellow accents, glowing buttons. It will be fully isolated so toggling between the existing modes continues to work exactly as before.
 
-## How it will work
+### What the user sees
+- Profile → Theme now shows four pills: **Dark · Light · Auto · Wild**
+- Picking Wild instantly transforms the app to a vibrant arcade look
+- Picking any other option restores that mode cleanly with no leftover Wild styling
 
-### 1. Leaving a workout
+### Visual direction for "Wild"
+- Background: deep midnight purple (almost black)
+- Surfaces: dark indigo with glowing borders
+- Primary accent: hot magenta/pink
+- Secondary accent: electric cyan
+- Highlight: arcade yellow
+- Slightly stronger shadows / glow on cards and buttons
+- Same Inter font (no font swap, keeps layout stable)
 
-Today the top-left button on the workout screen is labeled "Cancel" and immediately discards the workout (after a confirm). We'll change that exit path so it opens a clear two-choice dialog:
+### Technical changes (small, contained)
 
-```text
-┌───────────────────────────────────────┐
-│  Leave this workout?                  │
-│                                       │
-│  Pause it so you can come back, or    │
-│  cancel and discard your progress.    │
-│                                       │
-│  [ Pause workout ]  ← primary         │
-│  [ Cancel workout ]  ← destructive    │
-│  [ Keep training ]   ← dismiss        │
-└───────────────────────────────────────┘
-```
+1. **`src/index.css`** — add a new `.wild` class block right after `.dark`, defining the same set of design tokens (`--background`, `--foreground`, `--card`, `--primary`, `--secondary`, `--accent`, `--border`, `--surface-1/2/3`, `--shadow-card`, `--shadow-glow`, `--gradient-accent`, etc.) with neon HSL values. No changes to `:root` or `.dark`.
 
-- **Pause workout** → just navigates to Home. Nothing is deleted; the `workout_sessions` row stays open (no `finished_at`), so all logged sets are preserved.
-- **Cancel workout** → deletes the session and its sets (current behavior), then navigates Home.
-- **Keep training** → closes the dialog.
+2. **`src/hooks/useProfile.ts`** — extend the `theme` union type from `"dark" | "light" | "system"` to `"dark" | "light" | "system" | "wild"`. No DB migration needed (column is plain `text`).
 
-The header label changes from "Cancel" to "Leave" to match the new behavior. Browser back / hardware back also triggers this same dialog.
+3. **`src/pages/Profile.tsx`** — 
+   - Add `"wild","Wild"` to the Theme `Toggles` options (grid already uses `grid-cols-3` — switch to `grid-cols-2` so 4 pills wrap nicely on mobile, or keep `grid-cols-3` with the 4th wrapping; we'll use `grid-cols-2` for a clean 2×2 on mobile).
+   - Update `setTheme` so it always clears both `dark` and `wild` classes from `documentElement` first, then applies the correct one:
+     - `wild` → add `.wild`
+     - `dark` → add `.dark`
+     - `light` → no class
+     - `system` → add `.dark` if OS prefers dark, else nothing
+   - This guarantees switching between any two modes never leaves residue.
 
-### 2. Resume banner
+4. **App startup** — currently the theme class is only applied when the user toggles it on the Profile page (no boot-time logic exists). To make Wild persist across reloads, add a tiny effect in `src/pages/Profile.tsx`'s `useProfile` consumer path — specifically, apply the saved theme once when `profile` first loads (same logic as `setTheme`). This also fixes the existing reload behavior for Dark/Light/Auto without changing their semantics.
 
-A small banner appears at the top of the app on every screen **except** the active workout screen and the auth/onboarding screens, whenever the user has an unfinished `workout_sessions` row.
+### Safety / non-regression
+- `.dark` block is untouched → Dark mode unchanged.
+- `:root` (Light) is untouched → Light mode unchanged.
+- Auto still resolves via `prefers-color-scheme` → unchanged.
+- Class-clearing step ensures no mode "sticks" when switching.
+- DB schema unchanged; only the TypeScript union widens.
 
-```text
-┌─────────────────────────────────────────────────┐
-│ ▶ Workout in progress · Day 3 · 12 min          │
-│   [ Resume ]                          [ × ]     │
-└─────────────────────────────────────────────────┘
-```
-
-- **Resume** → navigates back to `/session/{id}`.
-- **×** → opens the same Cancel-workout confirmation (so users can ditch a forgotten paused session from anywhere).
-- The banner shows the day name (or "Free workout") and how long ago it was started.
-
-### 3. Edge cases handled
-
-- If the user starts a new workout while one is already paused, we'll prompt: "You already have a workout in progress. Resume it or discard it first?" — prevents two open sessions at once.
-- If multiple unfinished sessions somehow exist, the banner uses the most recent one.
-- The banner re-checks for an active session on route changes and after auth state changes, so it appears/disappears correctly without a refresh.
-
-## Technical details
-
-- **No database changes.** `workout_sessions.finished_at IS NULL` is already the exact "paused / in progress" signal.
-- **New hook `useActiveSession`** (`src/hooks/useActiveSession.ts`): subscribes once per signed-in user, queries the most recent unfinished session (with its `plan_day_id` → day name) and exposes `{ session, refresh, discard }`. Re-runs on route change.
-- **New `LeaveWorkoutDialog`** component used by `Session.tsx`. Replaces the current `confirm()` in `cancelWorkout`. Wired to:
-  - The header's left button (renamed to "Leave").
-  - A `useBlocker`/`beforeunload` handler so browser back also opens it.
-- **New `ResumeWorkoutBanner`** component rendered inside `AppShell` (above `<main>`). It uses `useActiveSession`, hides itself on `/session/*`, `/auth`, `/onboarding`. Adjusts the existing `pb-24` spacing so the banner doesn't overlap content (add a small top offset when visible).
-- **Home `startDay` / `startFreeWorkout`** check `useActiveSession` first; if one exists, show a small dialog offering Resume or Discard before creating a new session.
-- All copy uses existing semantic tokens (`bg-accent`, `text-muted-foreground`, `surface-card`, etc.) — no new colors.
-
-## Files touched
-
-- `src/hooks/useActiveSession.ts` (new)
-- `src/components/ResumeWorkoutBanner.tsx` (new)
-- `src/components/LeaveWorkoutDialog.tsx` (new)
-- `src/components/AppShell.tsx` (render banner)
-- `src/pages/Session.tsx` (swap confirm for dialog, rename button, block back-nav)
-- `src/pages/Home.tsx` (guard against starting a 2nd session)
-
-## Open question
-
-One small choice worth your call before I build:
-
-- **Banner position:** top of the screen (just under the status bar) **or** floating just above the bottom nav? Top is more visible; bottom keeps it out of the way of page headers. I'd recommend **top** — it matches how Spotify/Strava surface "in progress" sessions and is harder to miss.
+### Files touched
+- `src/index.css` (add `.wild` block)
+- `src/hooks/useProfile.ts` (widen type)
+- `src/pages/Profile.tsx` (add option, robust setTheme, apply-on-load)

@@ -7,7 +7,7 @@ export type Profile = {
   display_name: string | null;
   goal: "hypertrophy" | "strength" | "endurance";
   unit_pref: "lb" | "kg";
-  theme: "dark" | "light" | "system";
+  theme: "dark" | "light" | "system" | "wild";
   onboarded: boolean;
 };
 
