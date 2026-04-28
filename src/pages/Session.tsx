@@ -400,6 +400,7 @@ export default function Session() {
                             onAddSet={() => addSetRow(gex)}
                             onSwap={() => setSwapForId(gex.id)}
                             onRemove={() => removeExercise(gex.id)}
+                            onNotes={() => setNotesFor({ id: gex.exercise_id, name: gex.exercise.name })}
                           />
                         );
                       })}
