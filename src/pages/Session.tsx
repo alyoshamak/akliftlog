@@ -53,6 +53,7 @@ export default function Session() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [swapForId, setSwapForId] = useState<string | null>(null);
   const [notesFor, setNotesFor] = useState<{ id: string; name: string } | null>(null);
+  const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
   const [reorderMode, setReorderMode] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [startedAt, setStartedAt] = useState<string | null>(null);
@@ -102,6 +103,21 @@ export default function Session() {
       // Last performance map
       const lastMap = await fetchLastPerformanceMap(user.id, exList.map((e) => e.exercise_id));
       setLast(lastMap);
+
+      // Note counts per exercise
+      const exerciseIds = exList.map((e) => e.exercise_id);
+      if (exerciseIds.length > 0) {
+        const { data: notesData } = await supabase
+          .from("exercise_notes")
+          .select("exercise_id")
+          .eq("user_id", user.id)
+          .in("exercise_id", exerciseIds);
+        const counts: Record<string, number> = {};
+        for (const n of (notesData ?? []) as { exercise_id: string }[]) {
+          counts[n.exercise_id] = (counts[n.exercise_id] ?? 0) + 1;
+        }
+        setNoteCounts(counts);
+      }
 
       // Build set rows
       const rows: Record<string, SetRow[]> = {};
@@ -366,6 +382,7 @@ export default function Session() {
                     onSwap={() => setSwapForId(ex.id)}
                     onRemove={() => removeExercise(ex.id)}
                     onNotes={() => setNotesFor({ id: ex.exercise_id, name: ex.exercise.name })}
+                    noteCount={noteCounts[ex.exercise_id] ?? 0}
                   />
                 );
                 // Open wrapper at start of group
@@ -401,6 +418,7 @@ export default function Session() {
                             onSwap={() => setSwapForId(gex.id)}
                             onRemove={() => removeExercise(gex.id)}
                             onNotes={() => setNotesFor({ id: gex.exercise_id, name: gex.exercise.name })}
+                            noteCount={noteCounts[gex.exercise_id] ?? 0}
                           />
                         );
                       })}
@@ -452,7 +470,20 @@ export default function Session() {
       {notesFor && (
         <ExerciseNotesDialog
           open={!!notesFor}
-          onOpenChange={(o) => { if (!o) setNotesFor(null); }}
+          onOpenChange={async (o) => {
+            if (!o) {
+              const closingId = notesFor.id;
+              setNotesFor(null);
+              if (user) {
+                const { data } = await supabase
+                  .from("exercise_notes")
+                  .select("id")
+                  .eq("user_id", user.id)
+                  .eq("exercise_id", closingId);
+                setNoteCounts((prev) => ({ ...prev, [closingId]: (data ?? []).length }));
+              }
+            }
+          }}
           exerciseId={notesFor.id}
           exerciseName={notesFor.name}
           sessionId={sessionId}
@@ -463,7 +494,7 @@ export default function Session() {
 }
 
 function ExerciseCard({
-  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove, onNotes,
+  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove, onNotes, noteCount,
 }: {
   ex: SessionExercise;
   sets: SetRow[];
@@ -477,6 +508,7 @@ function ExerciseCard({
   onSwap: () => void;
   onRemove: () => void;
   onNotes: () => void;
+  noteCount: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ex.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -508,6 +540,17 @@ function ExerciseCard({
             <div className="text-xs text-muted-foreground">First time</div>
           )}
         </div>
+        {noteCount > 0 && (
+          <button
+            onClick={onNotes}
+            className="inline-flex items-center gap-1 rounded-full bg-accent/15 text-accent px-2 py-1 text-xs font-bold tap-44 hover:bg-accent/25"
+            aria-label={`${noteCount} note${noteCount > 1 ? "s" : ""} — view`}
+            title="View notes"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+            {noteCount}
+          </button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground tap-44">
             <MoreHorizontal className="h-5 w-5" />
