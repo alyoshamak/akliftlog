@@ -7,15 +7,16 @@ import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import BodyWeightLog from "@/components/BodyWeightLog";
-import { applyTheme } from "@/lib/theme";
+import { applyTheme, getStoredTheme } from "@/lib/theme";
 
 export default function Profile() {
   const { profile, update } = useProfile();
   const { signOut, user } = useAuth();
   const [name, setName] = useState("");
+  const selectedTheme = getStoredTheme() ?? profile?.theme;
 
   useEffect(() => { if (profile) setName(profile.display_name ?? ""); }, [profile]);
-  useEffect(() => { if (profile) applyTheme(profile.theme); }, [profile?.theme]);
+  useEffect(() => { if (selectedTheme) applyTheme(selectedTheme, { persist: false }); }, [selectedTheme]);
 
   if (!profile) return <AppShell><div className="pt-20 text-center text-muted-foreground">Loading…</div></AppShell>;
 
@@ -56,7 +57,7 @@ export default function Profile() {
         <Section title="Theme">
           <Toggles
             options={[["dark","Dark"],["light","Light"],["system","Auto"],["wild","Wild"]]}
-            value={profile.theme}
+            value={selectedTheme ?? profile.theme}
             onChange={setTheme}
             cols={4}
           />
