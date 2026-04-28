@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import BodyWeightLog from "@/components/BodyWeightLog";
 
 export default function Profile() {
   const { profile, update } = useProfile();
@@ -39,6 +40,8 @@ export default function Profile() {
           </div>
           <div className="mt-2 text-xs text-muted-foreground">{user?.email}</div>
         </div>
+
+        <BodyWeightLog unit={profile.unit_pref} />
 
         <Section title="Goal">
           <Toggles options={[["hypertrophy","Hypertrophy"],["strength","Strength"],["endurance","Endurance"]]} value={profile.goal} onChange={setGoal} />
