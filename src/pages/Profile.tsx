@@ -7,18 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import BodyWeightLog from "@/components/BodyWeightLog";
-
-function applyTheme(t: string) {
-  const root = document.documentElement;
-  root.classList.remove("dark", "wild");
-  if (t === "wild") {
-    root.classList.add("wild");
-  } else if (t === "dark") {
-    root.classList.add("dark");
-  } else if (t === "system") {
-    if (matchMedia("(prefers-color-scheme: dark)").matches) root.classList.add("dark");
-  }
-}
+import { applyTheme } from "@/lib/theme";
 
 export default function Profile() {
   const { profile, update } = useProfile();

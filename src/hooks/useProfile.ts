@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { applyTheme } from "@/lib/theme";
 
 export type Profile = {
   id: string;
@@ -28,6 +29,7 @@ export function useProfile() {
       .then(({ data }) => {
         if (active) {
           setProfile(data as any);
+          if (data?.theme) applyTheme(data.theme);
           setLoading(false);
         }
       });
