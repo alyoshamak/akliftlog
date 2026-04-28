@@ -8,12 +8,25 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import BodyWeightLog from "@/components/BodyWeightLog";
 
+function applyTheme(t: string) {
+  const root = document.documentElement;
+  root.classList.remove("dark", "wild");
+  if (t === "wild") {
+    root.classList.add("wild");
+  } else if (t === "dark") {
+    root.classList.add("dark");
+  } else if (t === "system") {
+    if (matchMedia("(prefers-color-scheme: dark)").matches) root.classList.add("dark");
+  }
+}
+
 export default function Profile() {
   const { profile, update } = useProfile();
   const { signOut, user } = useAuth();
   const [name, setName] = useState("");
 
   useEffect(() => { if (profile) setName(profile.display_name ?? ""); }, [profile]);
+  useEffect(() => { if (profile) applyTheme(profile.theme); }, [profile?.theme]);
 
   if (!profile) return <AppShell><div className="pt-20 text-center text-muted-foreground">Loading…</div></AppShell>;
 
@@ -21,7 +34,7 @@ export default function Profile() {
   const setUnit = (u: any) => update({ unit_pref: u });
   const setTheme = (t: any) => {
     update({ theme: t });
-    document.documentElement.classList.toggle("dark", t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches));
+    applyTheme(t);
   };
 
   return (
@@ -52,7 +65,12 @@ export default function Profile() {
         </Section>
 
         <Section title="Theme">
-          <Toggles options={[["dark","Dark"],["light","Light"],["system","Auto"]]} value={profile.theme} onChange={setTheme} />
+          <Toggles
+            options={[["dark","Dark"],["light","Light"],["system","Auto"],["wild","Wild"]]}
+            value={profile.theme}
+            onChange={setTheme}
+            cols={4}
+          />
         </Section>
 
         <Button
@@ -74,9 +92,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Toggles({ options, value, onChange }: { options: [string, string][]; value: string; onChange: (v: string) => void }) {
+function Toggles({ options, value, onChange, cols = 3 }: { options: [string, string][]; value: string; onChange: (v: string) => void; cols?: 2 | 3 | 4 }) {
+  const colClass = cols === 4 ? "grid-cols-4" : cols === 2 ? "grid-cols-2" : "grid-cols-3";
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className={`grid ${colClass} gap-2`}>
       {options.map(([v, label]) => (
         <button
           key={v}
