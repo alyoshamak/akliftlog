@@ -52,7 +52,7 @@ export default function Profile() {
         </Section>
 
         <Section title="Theme">
-          <Toggles options={[["dark","Dark"],["light","Light"],["system","System"]]} value={profile.theme} onChange={setTheme} />
+          <Toggles options={[["dark","Dark"],["light","Light"],["system","Auto"]]} value={profile.theme} onChange={setTheme} />
         </Section>
 
         <Button
