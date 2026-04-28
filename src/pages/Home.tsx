@@ -9,6 +9,17 @@ import { computeNextDayNumber } from "@/lib/nextUp";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ChevronRight, Dumbbell, Flame, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { useActiveSession } from "@/hooks/useActiveSession";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type Day = { id: string; day_number: number; name: string | null; exercise_count: number };
 
@@ -23,6 +34,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [recentCount, setRecentCount] = useState(0);
+  const { session: activeSession, refresh: refreshActive, discard: discardActive } = useActiveSession();
+  const [pendingStart, setPendingStart] = useState<null | (() => Promise<void>)>(null);
 
   // Onboarding redirect
   useEffect(() => {
