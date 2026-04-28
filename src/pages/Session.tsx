@@ -104,6 +104,21 @@ export default function Session() {
       const lastMap = await fetchLastPerformanceMap(user.id, exList.map((e) => e.exercise_id));
       setLast(lastMap);
 
+      // Note counts per exercise
+      const exerciseIds = exList.map((e) => e.exercise_id);
+      if (exerciseIds.length > 0) {
+        const { data: notesData } = await supabase
+          .from("exercise_notes")
+          .select("exercise_id")
+          .eq("user_id", user.id)
+          .in("exercise_id", exerciseIds);
+        const counts: Record<string, number> = {};
+        for (const n of (notesData ?? []) as { exercise_id: string }[]) {
+          counts[n.exercise_id] = (counts[n.exercise_id] ?? 0) + 1;
+        }
+        setNoteCounts(counts);
+      }
+
       // Build set rows
       const rows: Record<string, SetRow[]> = {};
       for (const ex of exList) {
