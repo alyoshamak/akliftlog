@@ -448,6 +448,16 @@ export default function Session() {
           }
         }}
       />
+
+      {notesFor && (
+        <ExerciseNotesDialog
+          open={!!notesFor}
+          onOpenChange={(o) => { if (!o) setNotesFor(null); }}
+          exerciseId={notesFor.id}
+          exerciseName={notesFor.name}
+          sessionId={sessionId}
+        />
+      )}
     </div>
   );
 }
