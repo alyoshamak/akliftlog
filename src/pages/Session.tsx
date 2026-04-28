@@ -503,6 +503,9 @@ function ExerciseCard({
             <MoreHorizontal className="h-5 w-5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onNotes}>
+              <StickyNote className="h-4 w-4 mr-2" /> Add/View notes
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onSwap}>
               <Replace className="h-4 w-4 mr-2" /> Swap exercise
             </DropdownMenuItem>
