@@ -17,14 +17,6 @@ export default function Profile() {
   useEffect(() => { if (profile) setName(profile.display_name ?? ""); }, [profile]);
   useEffect(() => { if (profile) applyTheme(profile.theme); }, [profile?.theme]);
 
-export default function Profile() {
-  const { profile, update } = useProfile();
-  const { signOut, user } = useAuth();
-  const [name, setName] = useState("");
-
-  useEffect(() => { if (profile) setName(profile.display_name ?? ""); }, [profile]);
-  useEffect(() => { if (profile) applyTheme(profile.theme); }, [profile?.theme]);
-
   if (!profile) return <AppShell><div className="pt-20 text-center text-muted-foreground">Loading…</div></AppShell>;
 
   const setGoal = (g: any) => update({ goal: g });
