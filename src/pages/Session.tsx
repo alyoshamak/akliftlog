@@ -57,6 +57,7 @@ export default function Session() {
   const [reorderMode, setReorderMode] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [planDayId, setPlanDayId] = useState<string | null>(null);
 
   const unit = profile?.unit_pref ?? "lb";
   const goal = profile?.goal ?? "hypertrophy";
@@ -79,6 +80,7 @@ export default function Session() {
         return;
       }
       setStartedAt(session?.started_at ?? null);
+      setPlanDayId((session as any)?.plan_day_id ?? null);
 
       const { data: exs } = await supabase
         .from("session_exercises")
@@ -274,6 +276,42 @@ export default function Session() {
       rows.push({ set_number: i + 1, weight: s.weight, reps: s.reps, unit, completed: false });
     }
     setSetsByExercise({ ...setsByExercise, [data.id]: rows });
+
+    // Suggest adding to the plan day, if this session is tied to one
+    if (planDayId) {
+      const { data: existing } = await supabase
+        .from("plan_day_exercises")
+        .select("id")
+        .eq("day_id", planDayId)
+        .eq("exercise_id", ex.id)
+        .maybeSingle();
+      if (!existing) {
+        toast(`Add ${ex.name} to your plan?`, {
+          description: "Include this in future workouts on this day.",
+          duration: 10000,
+          action: {
+            label: "Add to plan",
+            onClick: async () => {
+              const { count } = await supabase
+                .from("plan_day_exercises")
+                .select("id", { count: "exact", head: true })
+                .eq("day_id", planDayId);
+              const { error: addErr } = await supabase
+                .from("plan_day_exercises")
+                .insert({
+                  day_id: planDayId,
+                  exercise_id: ex.id,
+                  position: count ?? 0,
+                  target_sets: 3,
+                  target_reps: 10,
+                });
+              if (addErr) toast.error(addErr.message);
+              else toast.success(`${ex.name} added to your plan`);
+            },
+          },
+        });
+      }
+    }
   };
 
   const sensors = useSensors(
