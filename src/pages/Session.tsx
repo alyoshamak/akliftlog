@@ -5,13 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { fetchLastPerformanceMap, suggestSet, type LastPerformance } from "@/lib/lastPerformance";
-import { ChevronLeft, MoreHorizontal, Plus, Check, Replace, Trash2, GripVertical } from "lucide-react";
+import { ChevronLeft, MoreHorizontal, Plus, Check, Replace, Trash2, GripVertical, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ExercisePicker from "@/components/ExercisePicker";
+import ExerciseNotesDialog from "@/components/ExerciseNotesDialog";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   DragEndEvent, KeyboardSensor,
@@ -51,6 +52,7 @@ export default function Session() {
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [swapForId, setSwapForId] = useState<string | null>(null);
+  const [notesFor, setNotesFor] = useState<{ id: string; name: string } | null>(null);
   const [reorderMode, setReorderMode] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [startedAt, setStartedAt] = useState<string | null>(null);
@@ -363,6 +365,7 @@ export default function Session() {
                     onAddSet={() => addSetRow(ex)}
                     onSwap={() => setSwapForId(ex.id)}
                     onRemove={() => removeExercise(ex.id)}
+                    onNotes={() => setNotesFor({ id: ex.exercise_id, name: ex.exercise.name })}
                   />
                 );
                 // Open wrapper at start of group
@@ -397,6 +400,7 @@ export default function Session() {
                             onAddSet={() => addSetRow(gex)}
                             onSwap={() => setSwapForId(gex.id)}
                             onRemove={() => removeExercise(gex.id)}
+                            onNotes={() => setNotesFor({ id: gex.exercise_id, name: gex.exercise.name })}
                           />
                         );
                       })}
@@ -444,12 +448,22 @@ export default function Session() {
           }
         }}
       />
+
+      {notesFor && (
+        <ExerciseNotesDialog
+          open={!!notesFor}
+          onOpenChange={(o) => { if (!o) setNotesFor(null); }}
+          exerciseId={notesFor.id}
+          exerciseName={notesFor.name}
+          sessionId={sessionId}
+        />
+      )}
     </div>
   );
 }
 
 function ExerciseCard({
-  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove,
+  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove, onNotes,
 }: {
   ex: SessionExercise;
   sets: SetRow[];
@@ -462,6 +476,7 @@ function ExerciseCard({
   onAddSet: () => void;
   onSwap: () => void;
   onRemove: () => void;
+  onNotes: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ex.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -498,6 +513,9 @@ function ExerciseCard({
             <MoreHorizontal className="h-5 w-5" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onNotes}>
+              <StickyNote className="h-4 w-4 mr-2" /> Add/View notes
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onSwap}>
               <Replace className="h-4 w-4 mr-2" /> Swap exercise
             </DropdownMenuItem>
