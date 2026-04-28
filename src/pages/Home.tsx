@@ -35,7 +35,7 @@ export default function Home() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [recentCount, setRecentCount] = useState(0);
   const { session: activeSession, refresh: refreshActive, discard: discardActive } = useActiveSession();
-  const [pendingStart, setPendingStart] = useState<null | (() => Promise<void>)>(null);
+  const [pendingStart, setPendingStart] = useState<null | (() => void | Promise<unknown>)>(null);
 
   // Onboarding redirect
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function Home() {
     })();
   }, [user]);
 
-  const guardStart = (run: () => Promise<void>) => {
+  const guardStart = (run: () => void | Promise<unknown>) => {
     if (activeSession) {
       setPendingStart(() => run);
       return;
