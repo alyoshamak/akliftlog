@@ -468,7 +468,20 @@ export default function Session() {
       {notesFor && (
         <ExerciseNotesDialog
           open={!!notesFor}
-          onOpenChange={(o) => { if (!o) setNotesFor(null); }}
+          onOpenChange={async (o) => {
+            if (!o) {
+              const closingId = notesFor.id;
+              setNotesFor(null);
+              if (user) {
+                const { data } = await supabase
+                  .from("exercise_notes")
+                  .select("id")
+                  .eq("user_id", user.id)
+                  .eq("exercise_id", closingId);
+                setNoteCounts((prev) => ({ ...prev, [closingId]: (data ?? []).length }));
+              }
+            }
+          }}
           exerciseId={notesFor.id}
           exerciseName={notesFor.name}
           sessionId={sessionId}
