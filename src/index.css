@@ -121,7 +121,7 @@
 
   /* Safe-area aware bottom padding for fixed bars */
   .pb-safe {
-    padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   .pt-safe {
     padding-top: calc(env(safe-area-inset-top) + 0.5rem);
