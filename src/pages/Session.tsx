@@ -512,6 +512,13 @@ export default function Session() {
         }}
       />
 
+      <LeaveWorkoutDialog
+        open={leaveOpen}
+        onOpenChange={setLeaveOpen}
+        onPause={pauseWorkout}
+        onCancel={cancelWorkout}
+      />
+
       {notesFor && (
         <ExerciseNotesDialog
           open={!!notesFor}
