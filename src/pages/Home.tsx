@@ -237,6 +237,41 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!pendingStart} onOpenChange={(o) => { if (!o) setPendingStart(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>You already have a workout in progress</AlertDialogTitle>
+            <AlertDialogDescription>
+              Resume it, or discard it to start a new one.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <AlertDialogAction
+              onClick={() => {
+                if (activeSession) nav(`/session/${activeSession.id}`);
+                setPendingStart(null);
+              }}
+              className="bg-accent text-accent-foreground hover:bg-accent-glow"
+            >
+              Resume in-progress workout
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={async () => {
+                const run = pendingStart;
+                await discardActive();
+                await refreshActive();
+                setPendingStart(null);
+                if (run) await run();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Discard & start new
+            </AlertDialogAction>
+            <AlertDialogCancel>Never mind</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
