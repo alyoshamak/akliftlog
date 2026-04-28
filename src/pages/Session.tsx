@@ -378,8 +378,8 @@ export default function Session() {
     <div className="mx-auto flex min-h-full max-w-md flex-col bg-background">
       <header className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-border pt-safe">
         <div className="flex items-center justify-between px-3 py-2">
-          <button onClick={cancelWorkout} className="flex items-center gap-1 text-sm text-muted-foreground tap-44 px-2">
-            <ChevronLeft className="h-4 w-4" /> Cancel
+          <button onClick={() => setLeaveOpen(true)} className="flex items-center gap-1 text-sm text-muted-foreground tap-44 px-2">
+            <ChevronLeft className="h-4 w-4" /> Leave
           </button>
           <div className="text-xs text-muted-foreground">
             {startedAt && <span>Started {formatDistanceToNow(new Date(startedAt))} ago</span>}
