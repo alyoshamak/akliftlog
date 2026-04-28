@@ -540,6 +540,17 @@ function ExerciseCard({
             <div className="text-xs text-muted-foreground">First time</div>
           )}
         </div>
+        {noteCount > 0 && (
+          <button
+            onClick={onNotes}
+            className="inline-flex items-center gap-1 rounded-full bg-accent/15 text-accent px-2 py-1 text-xs font-bold tap-44 hover:bg-accent/25"
+            aria-label={`${noteCount} note${noteCount > 1 ? "s" : ""} — view`}
+            title="View notes"
+          >
+            <StickyNote className="h-3.5 w-3.5" />
+            {noteCount}
+          </button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground tap-44">
             <MoreHorizontal className="h-5 w-5" />
