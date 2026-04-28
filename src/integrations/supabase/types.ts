@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      body_weights: {
+        Row: {
+          created_at: string
+          id: string
+          recorded_at: string
+          unit: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          recorded_at?: string
+          unit?: string
+          user_id: string
+          weight: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          recorded_at?: string
+          unit?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
       exercise_notes: {
         Row: {
           created_at: string
