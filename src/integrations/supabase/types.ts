@@ -184,6 +184,69 @@ export type Database = {
           },
         ]
       }
+      plan_shares: {
+        Row: {
+          created_at: string
+          id: string
+          plan_description: string | null
+          plan_name: string
+          revoked_at: string | null
+          shared_by_name: string
+          slug: string
+          snapshot: Json
+          source_plan_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          plan_description?: string | null
+          plan_name: string
+          revoked_at?: string | null
+          shared_by_name: string
+          slug: string
+          snapshot: Json
+          source_plan_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          plan_description?: string | null
+          plan_name?: string
+          revoked_at?: string | null
+          shared_by_name?: string
+          slug?: string
+          snapshot?: Json
+          source_plan_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profile_shares: {
+        Row: {
+          created_at: string
+          id: string
+          revoked_at: string | null
+          slug: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          revoked_at?: string | null
+          slug: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          revoked_at?: string | null
+          slug?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -194,6 +257,7 @@ export type Database = {
           theme: string
           unit_pref: string
           updated_at: string
+          username: string | null
         }
         Insert: {
           created_at?: string
@@ -204,6 +268,7 @@ export type Database = {
           theme?: string
           unit_pref?: string
           updated_at?: string
+          username?: string | null
         }
         Update: {
           created_at?: string
@@ -214,6 +279,7 @@ export type Database = {
           theme?: string
           unit_pref?: string
           updated_at?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -379,7 +445,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_public_plan_share: { Args: { _slug: string }; Returns: Json }
+      get_public_profile_stats: { Args: { _slug: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

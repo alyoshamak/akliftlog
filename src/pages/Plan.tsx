@@ -13,6 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import ExercisePicker from "@/components/ExercisePicker";
+import ShareButton from "@/components/ShareButton";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   DragEndEvent, KeyboardSensor,
@@ -314,11 +315,14 @@ export default function Plan() {
           <button onClick={goBack} className="flex items-center gap-1 text-sm text-muted-foreground tap-44 -ml-2 px-2">
             <ChevronLeft className="h-4 w-4" /> Plans
           </button>
-          {firstTime && (
-            <Button size="sm" onClick={goBack} className="bg-accent text-accent-foreground hover:bg-accent-glow font-bold">
-              Done <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {planId && <ShareButton planId={planId} planName={planName} planDescription={null} />}
+            {firstTime && (
+              <Button size="sm" onClick={goBack} className="bg-accent text-accent-foreground hover:bg-accent-glow font-bold">
+                Done <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
         <input
