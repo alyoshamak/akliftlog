@@ -1,149 +1,121 @@
 
-## Goal
+# Shareable Profile & Plan Links
 
-Replace the current single-plan "Plan" tab (which dumps users straight into the editor) with a **Plans Hub** that supports multiple saved plans, switching the active plan, creating new plans through three flows, and a locked "Influencer Plans" tab teasing future curated plans.
+Add two share flows: a live public profile page and snapshot-based shared plan pages. Both are viewable without an account; copying a plan requires sign-in.
 
-The existing Plan editor (`/plan?planId=…`) stays exactly as it is — the hub just routes into it.
+## 1. Database changes
 
-## Data model
-
-The current schema already supports multiple plans per user (`workout_plans.user_id`, `workout_plans.is_active`). We add:
+Two new tables (RLS open for public SELECT, owner-only INSERT/DELETE), plus a `username` column on `profiles`.
 
 ```sql
-ALTER TABLE workout_plans
-  ADD COLUMN description text,
-  ADD COLUMN source text NOT NULL DEFAULT 'custom'
-    CHECK (source IN ('custom','template','upload','influencer'));
+-- Public username for profile share URLs (/u/:username)
+ALTER TABLE profiles ADD COLUMN username text UNIQUE;
+
+-- Profile share toggle (lets users enable/revoke their public profile)
+CREATE TABLE profile_shares (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL UNIQUE,
+  slug text NOT NULL UNIQUE,        -- short non-guessable id
+  created_at timestamptz DEFAULT now(),
+  revoked_at timestamptz
+);
+
+-- Plan share snapshots (immutable copy of plan at share time)
+CREATE TABLE plan_shares (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug text NOT NULL UNIQUE,        -- short non-guessable id
+  user_id uuid NOT NULL,            -- sharer (for "shared by")
+  source_plan_id uuid,              -- original (nullable; survives plan delete)
+  plan_name text NOT NULL,
+  plan_description text,
+  shared_by_name text NOT NULL,     -- denormalized at share time
+  snapshot jsonb NOT NULL,          -- { days: [{ day_number, name, exercises: [{ name, muscle_group, target_sets, target_reps, superset_group, exercise_id }] }] }
+  created_at timestamptz DEFAULT now(),
+  revoked_at timestamptz
+);
 ```
 
-- `description` — short label shown on cards (auto-set on template/upload/influencer creation, editable later in the editor).
-- `source` — provenance label, used for a small chip on each plan card.
+RLS:
+- `profile_shares` & `plan_shares`: public can SELECT when `revoked_at IS NULL`; only owner can INSERT/UPDATE/DELETE their own rows.
+- `profiles`: add a public SELECT policy scoped to columns needed by `/u/:slug` (display_name, username only — keep goal/unit/theme private). Implementation: keep current owner-only policy, and create a `public.get_public_profile(slug text)` SECURITY DEFINER function that returns only the safe columns. Same approach for body weights / sessions stats via `public.get_public_profile_stats(slug)`.
 
-**Active-plan invariant**: enforced in app code (existing pattern). Setting a plan active runs:
+Slug generation: 10-char base62 random in app code; collisions retried.
+
+## 2. Routes (public, outside RequireAuth)
+
 ```
-UPDATE workout_plans SET is_active=false WHERE user_id=$me AND id<>$target;
-UPDATE workout_plans SET is_active=true WHERE id=$target;
+/u/:slug          → PublicProfile
+/p/:slug          → PublicPlan
 ```
 
-**Influencer plans**: NOT created in this iteration. The tab is locked with a "Coming soon" overlay. No `influencers` / `influencer_plans` tables yet — deferred until we actually populate them. This keeps scope tight and avoids dead schema.
+`App.tsx` registers these BEFORE the `RequireAuth`-wrapped routes. They render a lightweight shell (no `BottomNav`) and work whether or not the viewer is signed in.
 
-## Routing
+## 3. Public profile page (`/u/:slug`) — live data
 
-| Route | Purpose |
-|---|---|
-| `/plan` (was the editor) | **NEW**: Plans Hub (list + tabs) |
-| `/plan/edit?planId=…` | The existing editor (renamed route) |
-| `/plan/new` | Create-new-plan chooser (3 cards: Build / Template / Upload) |
-| `/templates` | Existing — small change to accept `?planTarget=new` (always create a new plan instead of replacing active) |
-| `/upload` | Existing — same change |
+Fetched via the `get_public_profile_stats` RPC (single round trip):
+- Display name, avatar placeholder
+- Member since (profile.created_at)
+- Total finished workouts (count of workout_sessions with finished_at)
+- Current streak (computed server-side from session dates)
+- PRs: heaviest single set for Bench Press, Back Squat, Deadlift, Overhead Press, Barbell Row — matched by exercise name (case-insensitive). Returns `{ exercise, weight, unit, reps, date }`.
+- Top 5 exercises by 30-day volume (sum of weight×reps across sets, grouped by exercise).
+- Active plan summary: name, day count, list of `{ day_number, name, exercise_count }`.
 
-The `BottomNav` "Plan" entry continues to point at `/plan` and now lands on the hub.
+Footer banner for unauthenticated viewers: "Track your own lifts and PRs — sign up for LiftLog" → `/auth`.
 
-Anywhere in the app that links to `/plan?planId=…&first=1` (Onboarding, Templates, Upload) is updated to `/plan/edit?planId=…&first=1`.
+No copy actions. View-only.
 
-## Screens
+## 4. Public plan page (`/p/:slug`) — snapshot
 
-### 1. Plans Hub — `src/pages/PlansHub.tsx`
+Reads `plan_shares` row and renders:
+- Header: plan name, "{N} days · Shared by {shared_by_name}", description
+- For each day: day name + numbered list of `{ exercise_name · target_sets × target_reps }`, with superset grouping shown via a small "Superset" label band (same visual language as the editor).
+- Two "Copy to My Plans" buttons (top + bottom).
 
-Top of screen: tabs `My Plans` | `Influencer Plans` (using `Tabs` from shadcn).
+Copy flow:
+- **Signed in**: insert new `workout_plans` row (source = `'custom'`, is_active = false) + `plan_days` + `plan_day_exercises`. Match each snapshot exercise to the user's library by `exercise_id` first, then by name (case-insensitive); if missing, insert into `exercises` as a custom user-owned exercise. Show a dialog: "Saved to your plans" with "Set as active" / "Just save" actions, then route to `/plan/edit?planId={new}`.
+- **Signed out**: open a modal "Join LiftLog to save this plan" with Sign Up / Log In buttons. Both routes pass `?next=/p/{slug}?copy=1`. After auth, `Auth.tsx` redirects to `next`; `PublicPlan` reads `?copy=1` on mount and auto-runs the copy.
 
-**My Plans tab:**
+## 5. Share entry points
 
-- **Active Plan card** (highlighted with `ring-2 ring-accent`):
-  - Plan name (large)
-  - Day count + source chip (`Template`, `Upload`, `Influencer`, or none for Custom)
-  - Description (if any), one line truncated
-  - Primary button: **Edit** → `/plan/edit?planId=…`
+- **PlansHub** (`src/pages/PlansHub.tsx`): add a Share icon button on the active plan card and on each library plan card. Action calls `sharePlan(planId)`.
+- **Plan editor** (`src/pages/Plan.tsx`): add Share button in the header next to the title.
+- **Profile** (`src/pages/Profile.tsx`): add a "Share Profile" button. First tap creates a `profile_shares` row (and assigns `username` if empty, derived from display_name + 4 random chars). Subsequent taps copy the existing URL. Toast: "Link copied!" / "Plan link copied!"
+- **Reshare a plan**: on plans that already have a share row, the share button shows a small menu: "Copy link" / "Update link with current version" (creates a new snapshot, replaces the old slug — old link returns 404). 
 
-- **My Plan Library** (collapsible section, default open if >1 plan, hidden if only the active plan exists):
-  - Heading "My Plans" + count
-  - One card per non-active plan:
-    - Name, day count, source chip, description, "Updated {relative}" timestamp
-    - Action row: **Set Active**, **Edit**, **Duplicate**, **Delete** (Delete uses `AlertDialog` confirm; blocked if it's the only plan with a confirmation that warns no plan will be active)
+## 6. Shared Links management
 
-- **Create New Plan** button (full-width, prominent, accent color) → `/plan/new`
+New section inside `Profile.tsx` (collapsible "Shared Links · N"):
+- Profile share row: shows public URL, "Copy" + "Stop sharing" (sets `revoked_at`).
+- Each plan share row: plan name, created date, "Copy" + "Revoke".
 
-**Influencer Plans tab:**
+Revoked links: public pages render a friendly "This link is no longer available" state.
 
-- Single locked panel: lock icon, "Curated plans from coaches and athletes — coming soon." Greyed-out preview chips (e.g. mock cards with blur). No interactive content.
+## 7. Open Graph meta tags
 
-### 2. Create New Plan chooser — `src/pages/PlanNew.tsx`
+Lovable hosting serves the SPA `index.html`, so true per-route OG tags require server rendering — outside the SPA model. Practical approach:
+- Keep base OG defaults in `index.html` ("LiftLog — train smarter").
+- Use `react-helmet-async` to swap `<title>` for the public pages so in-app/browser titles read "{Name}'s Workout Plan — LiftLog". Browser-side OG tag updates won't affect iMessage/WhatsApp previews — call this out.
+- For richer link unfurls, a dedicated edge function (`og-share`) could later return server-rendered HTML at `/share/p/:slug` redirecting to `/p/:slug`. Mark as a follow-up; not in this pass unless requested.
 
-Reuses the same three cards from Onboarding step 2 (extract into `src/components/PlanCreateOptions.tsx` so onboarding and this page share the markup):
+## 8. Files
 
-1. **Start from a template** → `/templates?from=hub`
-2. **Build from scratch** → creates an empty (non-active) plan and navigates to `/plan/edit?planId=…&first=1&askActive=1`
-3. **Upload a plan** → `/upload?from=hub`
+**New**
+- `src/pages/PublicProfile.tsx`
+- `src/pages/PublicPlan.tsx`
+- `src/lib/share.ts` — `slugify`, `createPlanShare`, `createProfileShare`, `revokeShare`, `copyPlanFromSnapshot`
+- `supabase/migrations/<ts>_share_links.sql` — tables + RLS + `get_public_profile_stats(slug)` RPC
 
-After Build / Template / Upload completes, the user lands in the editor. If `askActive=1` is in the URL **and** there's already another active plan, show a one-time `AlertDialog` on mount: "Set this as your active plan?" with **Set as Active** / **Save for Later**. Selecting Set Active flips `is_active`. Selecting Save for Later leaves the new plan inactive.
+**Edited**
+- `src/App.tsx` — public routes
+- `src/pages/PlansHub.tsx` — share button per plan
+- `src/pages/Plan.tsx` — share button in header
+- `src/pages/Profile.tsx` — Share Profile button + Shared Links manager
+- `src/pages/Auth.tsx` — honor `?next=` redirect after sign-in/sign-up
+- `src/components/AppShell.tsx` — accept a `public` prop for hiding nav on public pages (or use `hideNav`, which already exists)
 
-### 3. Editor (`/plan/edit`)
-
-Same component as today's `Plan.tsx`, just moved to a new route path. Adjustments:
-
-- Reads `planId` from query (already does)
-- If `askActive=1` query param is present after creation, run the prompt described above on first render.
-- Add a small **back-to-hub** breadcrumb at the top (`← Plans` instead of `← Home`).
-
-### 4. Onboarding flow changes
-
-- The "Build manually" button in onboarding currently inserts an active plan with `source='custom'` (default). Update to set `source='custom'` and `description='Custom plan'` defaults. No behavior change.
-- Template and upload paths set `source='template'` / `source='upload'` and a sensible default `description` (e.g. template name's split style, or upload file name).
-
-## Behaviors
-
-**Setting a plan active** (Hub action):
-1. `UPDATE workout_plans SET is_active=false WHERE user_id=$me`
-2. `UPDATE workout_plans SET is_active=true WHERE id=$target`
-3. Toast: "Active plan: {name}"
-4. Refetch the hub list.
-
-**Duplicate a plan**:
-1. Insert a new `workout_plans` row with `name='{original} (Copy)'`, `is_active=false`, same `source` and `description`.
-2. Fetch original `plan_days` + `plan_day_exercises`.
-3. Insert copies under the new plan (new IDs, same day_number/name/exercise_id/position/sets/reps/superset_group).
-4. Toast: "Duplicated."
-
-**Delete a plan**:
-- Confirm via `AlertDialog`.
-- Cascade is **not** in the schema — explicitly delete child rows first (`plan_day_exercises` via day join, then `plan_days`, then the plan). The simplest version: query day IDs → delete `plan_day_exercises` where `day_id in (…)` → delete `plan_days` where `plan_id=…` → delete the plan.
-- If deleting the active plan, do not auto-promote another — let the home screen show the "no active plan" state and prompt the user to pick one. Show a toast warning.
-
-**Home screen** (`Home.tsx`):
-- Already keys off `is_active = true`. No code change needed beyond updating any `/plan` links that meant "editor" to point at `/plan/edit`. The empty-state CTA "Set up my plan" now goes to `/plan` (the hub) which is the right place.
-
-## Files
-
-**New:**
-- `src/pages/PlansHub.tsx` — the hub (tabs + active card + library + locked influencer tab)
-- `src/pages/PlanNew.tsx` — the create-new chooser
-- `src/components/PlanCreateOptions.tsx` — shared 3-card chooser used by hub and onboarding
-
-**Edited:**
-- `src/App.tsx` — change `/plan` to render `PlansHub`, add `/plan/edit` for the editor, add `/plan/new`
-- `src/pages/Plan.tsx` — minor: route param compatibility, breadcrumb back to `/plan` instead of `/`, optional `askActive` prompt on first render
-- `src/pages/Onboarding.tsx` — use shared `PlanCreateOptions`; set `source` + `description` on manual create
-- `src/pages/Templates.tsx` — when not coming from onboarding, do **not** deactivate other plans; just create the new one and (if `from=hub`) navigate to editor with `askActive=1`. Set `source='template'`, `description=tpl.name`.
-- `src/pages/Upload.tsx` — on successful parse-into-plan, set `source='upload'`, `description` from filename. If `from=hub`, do not auto-activate; route to editor with `askActive=1`.
-
-**DB migration:**
-- Add `description` and `source` columns to `workout_plans` (see SQL above). No RLS change needed (existing `plans_own` policy covers all operations).
-
-**Not changed:**
-- Editor internals (`Plan.tsx` body), `plan_days`, `plan_day_exercises`, `exercises`, RLS, edge functions.
-- No influencer schema yet.
-
-## Out of scope
-
-- Real influencer plans data, admin tooling, or "Save to My Plans" flow (placeholder UI only with lock + "coming soon").
-- Periodization or weekly progressions.
-- Reordering plans manually in the library (sorted by `updated_at desc`).
-- Sharing/exporting a plan.
-
-## Validation
-
-- After the migration, existing plans get `source='custom'`, `description=null` — fine.
-- Setting active still satisfies the "exactly one active per user" expectation enforced at write time.
-- `Home.tsx` continues to render the active plan; if the user deletes their active plan, Home gracefully falls through to the empty state and links to the hub.
-- Editor route works whether reached from hub (Edit), create flows (with `?first=1&askActive=1`), or onboarding (existing flow).
+## Out of scope (call out to user)
+- Server-rendered OG tags for rich link previews (would need an edge function).
+- Avatar uploads (no avatar field exists today; the public profile shows initials).
+- Analytics on share link views.
 
