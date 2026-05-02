@@ -14,6 +14,7 @@ import History from "./pages/History";
 import Progress from "./pages/Progress";
 import Profile from "./pages/Profile";
 import Upload from "./pages/Upload";
+import Templates from "./pages/Templates";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/progress" element={<RequireAuth><Progress /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
             <Route path="/upload" element={<RequireAuth><Upload /></RequireAuth>} />
+            <Route path="/templates" element={<RequireAuth><Templates /></RequireAuth>} />
             <Route path="/index" element={<Navigate to="/" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

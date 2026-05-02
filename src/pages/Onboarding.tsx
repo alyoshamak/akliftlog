@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Dumbbell, Flame, Mountain, Heart, Pencil, Upload, ChevronRight } from "lucide-react";
+import { Dumbbell, Flame, Mountain, Heart, Pencil, Upload, ChevronRight, LayoutGrid } from "lucide-react";
 
 type Goal = "hypertrophy" | "strength" | "endurance";
 
@@ -101,8 +101,26 @@ export default function Onboarding() {
       {step === 2 && (
         <div className="mt-10 animate-fade-in">
           <h1 className="text-3xl font-extrabold tracking-tight">Set up your plan</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Build it manually or let us parse a doc.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Pick a template, build it yourself, or upload a doc.</p>
           <div className="mt-8 space-y-3">
+            <button
+              onClick={async () => {
+                if (!user) return;
+                await supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
+                nav("/templates?from=onboarding");
+              }}
+              disabled={busy}
+              className="w-full surface-card p-5 text-left tap-56 hover:bg-surface-2 transition-colors flex items-start gap-4"
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+                <LayoutGrid className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <div className="font-bold">Start from a template</div>
+                <div className="text-sm text-muted-foreground">PPL, Upper/Lower, Bro Split, Full Body, PHUL.</div>
+              </div>
+              <ChevronRight className="h-5 w-5 text-muted-foreground self-center" />
+            </button>
             <button
               onClick={goManual}
               disabled={busy}
@@ -122,7 +140,7 @@ export default function Onboarding() {
               disabled={busy}
               className="w-full surface-card p-5 text-left tap-56 hover:bg-surface-2 transition-colors flex items-start gap-4"
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
                 <Upload className="h-5 w-5" />
               </div>
               <div className="flex-1">
