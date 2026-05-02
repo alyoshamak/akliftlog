@@ -1,46 +1,82 @@
-## Add a "Wild" retro arcade theme
+## Diagnosis
 
-Add a 4th theme option alongside Dark, Light, and Auto. "Wild" will look like an old-school video game — neon colors, deep purple/black background, hot pink + cyan + electric yellow accents, glowing buttons. It will be fully isolated so toggling between the existing modes continues to work exactly as before.
+The upload flow technically works end-to-end, but the parser's input is broken for everything except plain text and images:
 
-### What the user sees
-- Profile → Theme now shows four pills: **Dark · Light · Auto · Wild**
-- Picking Wild instantly transforms the app to a vibrant arcade look
-- Picking any other option restores that mode cleanly with no leftover Wild styling
+1. **PDFs are decoded with `await file.text()`** — for binary PDFs this yields compressed-stream gibberish. The model receives noise and falls back to its instructed default ("3 sets of 10 reps") which is why the result feels "made up rather than parsed."
+2. **XLSX/XLS are also decoded with `file.text()`** — they're zip archives, so the model gets binary noise.
+3. **The system prompt encourages fabrication.** It tells the model to default to 3×10 when unclear, with no instruction to refuse, return empty, or flag low confidence.
+4. **No model fallback / no per-exercise confidence.** The user sees a confident-looking draft regardless of input quality.
+5. **Custom exercises default to `muscle_group: "chest"`** — misleading once saved.
+6. **No edge function logs of model output**, so failures are invisible to us.
 
-### Visual direction for "Wild"
-- Background: deep midnight purple (almost black)
-- Surfaces: dark indigo with glowing borders
-- Primary accent: hot magenta/pink
-- Secondary accent: electric cyan
-- Highlight: arcade yellow
-- Slightly stronger shadows / glow on cards and buttons
-- Same Inter font (no font swap, keeps layout stable)
+## Goals (per user answers)
 
-### Technical changes (small, contained)
+- Make **images** and **spreadsheets (XLSX/CSV)** rock-solid; PDFs handled via image-rendering fallback (covers both text + scanned).
+- Keep `google/gemini-3-flash-preview`, but improve preprocessing + prompt.
+- When sets/reps are missing, fill defaults from the user's `goal` (strength → 5×5, hypertrophy → 3×10, endurance → 3×15) and surface this clearly.
+- Keep the existing review-then-save UI; add a banner + per-exercise indicators when confidence is low or defaults were applied.
 
-1. **`src/index.css`** — add a new `.wild` class block right after `.dark`, defining the same set of design tokens (`--background`, `--foreground`, `--card`, `--primary`, `--secondary`, `--accent`, `--border`, `--surface-1/2/3`, `--shadow-card`, `--shadow-glow`, `--gradient-accent`, etc.) with neon HSL values. No changes to `:root` or `.dark`.
+## Plan
 
-2. **`src/hooks/useProfile.ts`** — extend the `theme` union type from `"dark" | "light" | "system"` to `"dark" | "light" | "system" | "wild"`. No DB migration needed (column is plain `text`).
+### 1. Backend — rewrite `parse-plan-document` edge function
 
-3. **`src/pages/Profile.tsx`** — 
-   - Add `"wild","Wild"` to the Theme `Toggles` options (grid already uses `grid-cols-3` — switch to `grid-cols-2` so 4 pills wrap nicely on mobile, or keep `grid-cols-3` with the 4th wrapping; we'll use `grid-cols-2` for a clean 2×2 on mobile).
-   - Update `setTheme` so it always clears both `dark` and `wild` classes from `documentElement` first, then applies the correct one:
-     - `wild` → add `.wild`
-     - `dark` → add `.dark`
-     - `light` → no class
-     - `system` → add `.dark` if OS prefers dark, else nothing
-   - This guarantees switching between any two modes never leaves residue.
+**A. Input handling per file type**
+- **Images** (`image/*`): unchanged path (base64 → vision).
+- **CSV / TXT / MD**: `file.text()` (correct), pass to model as text.
+- **XLSX / XLS**: parse with the `xlsx` library (`https://esm.sh/xlsx@0.18.5`); convert each sheet to a CSV/markdown table and pass as structured text. Iterate every sheet (some plans split day-per-sheet).
+- **PDF**: render every page to a PNG using `pdfjs-dist` + `canvas` (or simpler: `https://esm.sh/pdf-img-convert`) and send pages as image_url parts (cap at first ~6 pages to control cost). This handles both text-based and scanned PDFs uniformly.
+- **Unknown**: try text; if result is mostly non-printable, return a clear error.
 
-4. **App startup** — currently the theme class is only applied when the user toggles it on the Profile page (no boot-time logic exists). To make Wild persist across reloads, add a tiny effect in `src/pages/Profile.tsx`'s `useProfile` consumer path — specifically, apply the saved theme once when `profile` first loads (same logic as `setTheme`). This also fixes the existing reload behavior for Dark/Light/Auto without changing their semantics.
+**B. New prompt + tool schema**
+- System prompt rewritten to be strict:
+  - "Extract ONLY exercises that are explicitly present in the document."
+  - "If a value (sets or reps) is missing, set it to `null` — do NOT invent it."
+  - "If the document does not contain a workout plan, return `days: []`."
+  - "For each exercise, return a `confidence` field: `high` | `medium` | `low`."
+- Tool schema gains: `confidence`, nullable `sets`/`reps`, optional `notes`, optional `superset_group`, optional `muscle_group_hint`.
+- Pass the user's `goal` from the client → prompt context (only for tone, defaults applied client-side).
 
-### Safety / non-regression
-- `.dark` block is untouched → Dark mode unchanged.
-- `:root` (Light) is untouched → Light mode unchanged.
-- Auto still resolves via `prefers-color-scheme` → unchanged.
-- Class-clearing step ensures no mode "sticks" when switching.
-- DB schema unchanged; only the TypeScript union widens.
+**C. Robustness**
+- Log `aiJson.choices[0].message` for debugging.
+- If `days` is empty, return `{ days: [], reason: "no_plan_detected" }` so the client can show a helpful message instead of an empty draft.
+- Keep 429/402 surfacing.
 
-### Files touched
-- `src/index.css` (add `.wild` block)
-- `src/hooks/useProfile.ts` (widen type)
-- `src/pages/Profile.tsx` (add option, robust setTheme, apply-on-load)
+### 2. Frontend — `src/pages/Upload.tsx`
+
+- Pass `goal` (from `useProfile`) in the `invoke` body.
+- After parse:
+  - If `days.length === 0` → toast: "We couldn't find a workout plan in this file. Try a clearer image or paste the text." Don't enter draft mode.
+  - Else, build draft and apply goal-based defaults for any `null` sets/reps:
+    - `strength` → 5 sets × 5 reps
+    - `hypertrophy` → 3 sets × 10 reps
+    - `endurance` → 3 sets × 15 reps
+  - Mark each exercise with `defaultsApplied: boolean` and pass `confidence` through.
+- UI additions in the draft view:
+  - Top banner: count of low-confidence + count of defaulted entries, e.g. *"3 exercises had no sets/reps in your file — we filled defaults based on your goal (hypertrophy)."*
+  - Per-exercise badge: "auto-filled" (when defaults applied) or "low confidence" (yellow dot).
+  - Keep all values editable as today.
+- For unmatched exercises (no library hit), drop the misleading `muscle_group: "chest"` default — store as `"other"` and let the user fix it later in Plan editor.
+
+### 3. Minor cleanup
+
+- `parse-plan-document/index.ts`: add `Content-Type` to OPTIONS response, use `corsHeaders` from supabase-js if available.
+- Add a small README comment at top of the function describing supported formats.
+- No DB migrations needed.
+
+## Files touched
+
+- `supabase/functions/parse-plan-document/index.ts` — major rewrite (PDF→images, XLSX parsing, new prompt + schema, logging)
+- `src/pages/Upload.tsx` — pass goal, apply defaults, empty-state, confidence badges, banner
+- (No changes to DB, RLS, or other pages)
+
+## Out of scope
+
+- OCR libraries beyond what `pdf-img-convert` + the vision model already give us.
+- Multi-week / mesocycle expansion (today the parser flattens to one week — flagging if user wants this we can layer later).
+- Exercise-library auto-creation improvements (covered in a follow-up if desired).
+
+## Validation
+
+- Manually test with: a phone photo of a written plan, a CSV with day/exercise/sets/reps columns, an XLSX with one sheet per day, a text-based PDF, and a scanned PDF.
+- Confirm: empty/garbage uploads now show the "no plan detected" toast instead of a fabricated draft.
+- Check edge function logs for the `choices[0].message` dump after each test.
