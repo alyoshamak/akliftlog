@@ -1,82 +1,132 @@
-## Diagnosis
+## Goal
 
-The upload flow technically works end-to-end, but the parser's input is broken for everything except plain text and images:
+In onboarding step 2, replace the current two-option screen with a **three-option** screen:
+1. **Start from a template** (new, surfaced first)
+2. **Build manually** (existing)
+3. **Upload a plan** (existing)
 
-1. **PDFs are decoded with `await file.text()`** — for binary PDFs this yields compressed-stream gibberish. The model receives noise and falls back to its instructed default ("3 sets of 10 reps") which is why the result feels "made up rather than parsed."
-2. **XLSX/XLS are also decoded with `file.text()`** — they're zip archives, so the model gets binary noise.
-3. **The system prompt encourages fabrication.** It tells the model to default to 3×10 when unclear, with no instruction to refuse, return empty, or flag low confidence.
-4. **No model fallback / no per-exercise confidence.** The user sees a confident-looking draft regardless of input quality.
-5. **Custom exercises default to `muscle_group: "chest"`** — misleading once saved.
-6. **No edge function logs of model output**, so failures are invisible to us.
+The template path: pick from 5 pre-built splits → preview the full plan → confirm to load it into the editor.
 
-## Goals (per user answers)
+## Templates (data only — no DB schema changes)
 
-- Make **images** and **spreadsheets (XLSX/CSV)** rock-solid; PDFs handled via image-rendering fallback (covers both text + scanned).
-- Keep `google/gemini-3-flash-preview`, but improve preprocessing + prompt.
-- When sets/reps are missing, fill defaults from the user's `goal` (strength → 5×5, hypertrophy → 3×10, endurance → 3×15) and surface this clearly.
-- Keep the existing review-then-save UI; add a banner + per-exercise indicators when confidence is low or defaults were applied.
+All 5 templates are defined as a static TypeScript file using exercise **names** that match the existing library (verified — all 77 built-in exercises cover everything needed; no new exercises required).
 
-## Plan
+```
+src/lib/planTemplates.ts
+```
 
-### 1. Backend — rewrite `parse-plan-document` edge function
+Each template:
+```ts
+{
+  id: string;
+  name: string;
+  daysPerWeek: number;
+  description: string;       // short "who it's for"
+  dayFocus: string[];        // e.g. ["Push", "Pull", "Legs", "Push", "Pull", "Legs"]
+  days: Array<{
+    name: string;            // "Push A", "Upper Heavy", etc.
+    exercises: Array<{ name: string; sets: number; reps: number }>;
+  }>;
+}
+```
 
-**A. Input handling per file type**
-- **Images** (`image/*`): unchanged path (base64 → vision).
-- **CSV / TXT / MD**: `file.text()` (correct), pass to model as text.
-- **XLSX / XLS**: parse with the `xlsx` library (`https://esm.sh/xlsx@0.18.5`); convert each sheet to a CSV/markdown table and pass as structured text. Iterate every sheet (some plans split day-per-sheet).
-- **PDF**: render every page to a PNG using `pdfjs-dist` + `canvas` (or simpler: `https://esm.sh/pdf-img-convert`) and send pages as image_url parts (cap at first ~6 pages to control cost). This handles both text-based and scanned PDFs uniformly.
-- **Unknown**: try text; if result is mostly non-printable, return a clear error.
+### Template content (concise — full sets/reps per exercise)
 
-**B. New prompt + tool schema**
-- System prompt rewritten to be strict:
-  - "Extract ONLY exercises that are explicitly present in the document."
-  - "If a value (sets or reps) is missing, set it to `null` — do NOT invent it."
-  - "If the document does not contain a workout plan, return `days: []`."
-  - "For each exercise, return a `confidence` field: `high` | `medium` | `low`."
-- Tool schema gains: `confidence`, nullable `sets`/`reps`, optional `notes`, optional `superset_group`, optional `muscle_group_hint`.
-- Pass the user's `goal` from the client → prompt context (only for tone, defaults applied client-side).
+**1. Push / Pull / Legs (6 days/week)**
+- Push A: Barbell Bench Press 4×6, Overhead Press 3×8, Incline Dumbbell Press 3×10, Lateral Raise 3×12, Tricep Pushdown 3×12, Overhead Tricep Extension 3×12
+- Pull A: Pull-Up 4×8, Barbell Row 4×8, Lat Pulldown 3×10, Seated Cable Row 3×10, Face Pull 3×15, Barbell Curl 3×10
+- Legs A: Back Squat 4×6, Romanian Deadlift 3×8, Leg Press 3×10, Leg Curl 3×12, Calf Raise 4×15
+- Push B: Incline Barbell Bench Press 4×8, Seated Dumbbell Press 3×10, Dumbbell Bench Press 3×10, Cable Crossover 3×12, Skull Crusher 3×10, Tricep Pushdown 3×12
+- Pull B: Deadlift 3×5, Lat Pulldown 4×10, Dumbbell Row 3×10, Straight Arm Pulldown 3×12, Hammer Curl 3×10, Incline Dumbbell Curl 3×12
+- Legs B: Front Squat 4×8, Hip Thrust 3×10, Walking Lunge 3×10, Leg Extension 3×12, Leg Curl 3×12, Calf Raise 4×15
 
-**C. Robustness**
-- Log `aiJson.choices[0].message` for debugging.
-- If `days` is empty, return `{ days: [], reason: "no_plan_detected" }` so the client can show a helpful message instead of an empty draft.
-- Keep 429/402 surfacing.
+**2. Upper / Lower (4 days/week)**
+- Upper Heavy: Barbell Bench Press 4×6, Barbell Row 4×6, Overhead Press 3×8, Lat Pulldown 3×10, Barbell Curl 3×10, Skull Crusher 3×10
+- Lower Heavy: Back Squat 4×6, Romanian Deadlift 4×8, Leg Press 3×10, Leg Curl 3×10, Calf Raise 4×12, Plank 3×10
+- Upper Light: Incline Dumbbell Press 4×10, Seated Cable Row 4×10, Lateral Raise 3×12, Face Pull 3×15, Hammer Curl 3×12, Tricep Pushdown 3×12
+- Lower Light: Front Squat 3×10, Hip Thrust 3×10, Walking Lunge 3×10, Leg Extension 3×12, Calf Raise 4×15, Hanging Leg Raise 3×12
 
-### 2. Frontend — `src/pages/Upload.tsx`
+**3. Bro Split (5 days/week)**
+- Chest: Barbell Bench Press 4×8, Incline Dumbbell Press 4×10, Machine Chest Press 3×10, Cable Crossover 3×12, Dumbbell Fly 3×12, Push-Up 3×15
+- Back: Pull-Up 4×8, Barbell Row 4×8, Lat Pulldown 3×10, Seated Cable Row 3×10, Straight Arm Pulldown 3×12, Face Pull 3×15
+- Shoulders: Overhead Press 4×8, Seated Dumbbell Press 3×10, Lateral Raise 4×12, Rear Delt Fly 3×12, Front Raise 3×12, Shrug 3×12
+- Legs: Back Squat 4×8, Leg Press 4×10, Romanian Deadlift 3×10, Leg Curl 3×12, Leg Extension 3×12, Calf Raise 4×15
+- Arms: Barbell Curl 4×10, Skull Crusher 4×10, Hammer Curl 3×12, Tricep Pushdown 3×12, Preacher Curl 3×12, Overhead Tricep Extension 3×12
 
-- Pass `goal` (from `useProfile`) in the `invoke` body.
-- After parse:
-  - If `days.length === 0` → toast: "We couldn't find a workout plan in this file. Try a clearer image or paste the text." Don't enter draft mode.
-  - Else, build draft and apply goal-based defaults for any `null` sets/reps:
-    - `strength` → 5 sets × 5 reps
-    - `hypertrophy` → 3 sets × 10 reps
-    - `endurance` → 3 sets × 15 reps
-  - Mark each exercise with `defaultsApplied: boolean` and pass `confidence` through.
-- UI additions in the draft view:
-  - Top banner: count of low-confidence + count of defaulted entries, e.g. *"3 exercises had no sets/reps in your file — we filled defaults based on your goal (hypertrophy)."*
-  - Per-exercise badge: "auto-filled" (when defaults applied) or "low confidence" (yellow dot).
-  - Keep all values editable as today.
-- For unmatched exercises (no library hit), drop the misleading `muscle_group: "chest"` default — store as `"other"` and let the user fix it later in Plan editor.
+**4. Full Body (3 days/week)**
+- Day A: Back Squat 3×8, Barbell Bench Press 3×8, Barbell Row 3×8, Overhead Press 3×10, Plank 3×10
+- Day B: Deadlift 3×5, Incline Dumbbell Press 3×10, Lat Pulldown 3×10, Lateral Raise 3×12, Hanging Leg Raise 3×12
+- Day C: Front Squat 3×8, Dumbbell Bench Press 3×10, Seated Cable Row 3×10, Barbell Curl 3×10, Tricep Pushdown 3×12, Calf Raise 3×15
 
-### 3. Minor cleanup
+**5. PHUL — Power & Hypertrophy (4 days/week)**
+- Upper Heavy: Barbell Bench Press 4×5, Barbell Row 4×5, Overhead Press 3×6, Pull-Up 3×6, Skull Crusher 3×8, Barbell Curl 3×8
+- Lower Heavy: Back Squat 4×5, Deadlift 3×5, Leg Press 3×8, Leg Curl 3×8, Calf Raise 4×10
+- Upper Hypertrophy: Incline Dumbbell Press 4×10, Seated Cable Row 4×10, Lateral Raise 3×12, Cable Crossover 3×12, Hammer Curl 3×12, Tricep Pushdown 3×12
+- Lower Hypertrophy: Front Squat 3×10, Romanian Deadlift 3×10, Walking Lunge 3×10, Leg Extension 3×12, Leg Curl 3×12, Calf Raise 4×15
 
-- `parse-plan-document/index.ts`: add `Content-Type` to OPTIONS response, use `corsHeaders` from supabase-js if available.
-- Add a small README comment at top of the function describing supported formats.
-- No DB migrations needed.
+## UI flow
 
-## Files touched
+### 1. `src/pages/Onboarding.tsx` — step 2
 
-- `supabase/functions/parse-plan-document/index.ts` — major rewrite (PDF→images, XLSX parsing, new prompt + schema, logging)
-- `src/pages/Upload.tsx` — pass goal, apply defaults, empty-state, confidence badges, banner
-- (No changes to DB, RLS, or other pages)
+Add a third card above the existing two:
+- **"Start from a template"** (icon: LayoutGrid or Sparkles) → navigates to `/templates?from=onboarding`
+- Existing **"Build manually"** and **"Upload a plan"** stay as-is
 
-## Out of scope
+The "Build manually" handler today creates an empty active plan and sends user to `/plan?planId=…&first=1`. The template flow will use the same end-state but pre-populated.
 
-- OCR libraries beyond what `pdf-img-convert` + the vision model already give us.
-- Multi-week / mesocycle expansion (today the parser flattens to one week — flagging if user wants this we can layer later).
-- Exercise-library auto-creation improvements (covered in a follow-up if desired).
+### 2. New page: `src/pages/Templates.tsx` (route `/templates`)
+
+A list view showing all 5 template cards. Each card displays:
+- Template name (large, bold)
+- Days/week badge ("6 days/week")
+- 1-line description
+- Day focus chips: e.g. `Push · Pull · Legs · Push · Pull · Legs`
+
+Tapping a card opens a **preview** view (same page, second state, or modal sheet — using a dialog/sheet keeps the back nav clean):
+- Shows each day name + collapsible exercise list (name + sets×reps)
+- Sticky bottom bar with **"Use this template"** button + **"Cancel"**
+- "Use this template" → loads it (see below) → navigates to `/plan?planId=…&first=1`
+
+Header has a back button. If `?from=onboarding`, back returns to onboarding step 2.
+
+### 3. Loading a template
+
+When user confirms:
+1. Deactivate any existing active plan for the user (`workout_plans.is_active = false`).
+2. Insert a new `workout_plans` row with `name = template.name`, `is_active = true`.
+3. For each template day (in order):
+   - Insert a `plan_days` row.
+   - For each exercise: look up `exercise_id` by exact name from `exercises` table (server-side query filtered to `owner_id is null`). Insert `plan_day_exercises` with `target_sets`, `target_reps`, `position`.
+4. Mark profile `onboarded = true`.
+5. Navigate to `/plan?planId={id}&first=1`.
+
+If any template exercise name is missing from the library (shouldn't happen — verified — but defensive), skip it and continue, then toast a soft warning.
+
+### 4. Entry points
+
+- Primarily reached from onboarding step 2.
+- Also reachable from the existing Plan editor as a future "Replace with template" affordance — **out of scope** for this change.
+
+## Files
+
+**New:**
+- `src/lib/planTemplates.ts` — the 5 template definitions
+- `src/pages/Templates.tsx` — list + preview UI + load handler
+
+**Edited:**
+- `src/pages/Onboarding.tsx` — add the third "Start from a template" card to step 2
+- `src/App.tsx` — add `/templates` route (auth-gated, same as other onboarded pages)
+
+**Not changed:**
+- DB schema, RLS policies, exercise library, edge functions
 
 ## Validation
 
-- Manually test with: a phone photo of a written plan, a CSV with day/exercise/sets/reps columns, an XLSX with one sheet per day, a text-based PDF, and a scanned PDF.
-- Confirm: empty/garbage uploads now show the "no plan detected" toast instead of a fabricated draft.
-- Check edge function logs for the `choices[0].message` dump after each test.
+- Verified all exercises in the 5 templates exist in the `exercises` table with `owner_id is null` (queried 77 built-ins; all referenced names match).
+- After loading, user lands in the existing Plan editor with the plan name and all days/exercises pre-filled, fully editable (rename, reorder, add/remove, change sets/reps, supersets) before any "save" — they're already saved as the active plan, but the editor persists edits live as today.
+
+## Out of scope
+
+- Saving custom user-made templates.
+- Periodization (week-by-week progressions inside one plan).
+- A "switch template" button inside the existing plan editor.
