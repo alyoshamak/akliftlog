@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Dumbbell, Flame, Mountain, Heart, Pencil, Upload, ChevronRight, LayoutGrid } from "lucide-react";
+import { Dumbbell, Flame, Mountain, Heart, ChevronRight } from "lucide-react";
+import PlanCreateOptions from "@/components/PlanCreateOptions";
 
 type Goal = "hypertrophy" | "strength" | "endurance";
 
@@ -33,7 +34,13 @@ export default function Onboarding() {
     setBusy(true);
     const { data: plan, error } = await supabase
       .from("workout_plans")
-      .insert({ user_id: user.id, name: "My Plan", is_active: true })
+      .insert({
+        user_id: user.id,
+        name: "My Plan",
+        description: "Custom plan",
+        source: "custom",
+        is_active: true,
+      })
       .select()
       .maybeSingle();
     if (error || !plan) {
@@ -43,7 +50,7 @@ export default function Onboarding() {
     }
     await supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
     setBusy(false);
-    nav(`/plan?planId=${plan.id}&first=1`, { replace: true });
+    nav(`/plan/edit?planId=${plan.id}&first=1`, { replace: true });
   };
 
   const goUpload = async () => {
