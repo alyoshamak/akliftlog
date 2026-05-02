@@ -176,8 +176,11 @@ export default function PlansHub() {
               <>
                 {active ? (
                   <div className="rounded-2xl border-2 border-accent bg-accent/5 p-5 accent-glow">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> Active
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Active
+                      </div>
+                      <ShareButton planId={active.id} planName={active.name} planDescription={active.description} />
                     </div>
                     <div className="mt-1.5 text-2xl font-extrabold leading-tight">{active.name}</div>
                     <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
@@ -240,6 +243,7 @@ export default function PlansHub() {
                                   <p className="mt-1.5 text-xs text-muted-foreground line-clamp-2">{p.description}</p>
                                 )}
                               </div>
+                              <ShareButton planId={p.id} planName={p.name} planDescription={p.description} />
                             </div>
                             <div className="mt-3 grid grid-cols-2 gap-2">
                               <Button
