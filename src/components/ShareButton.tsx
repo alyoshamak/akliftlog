@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import {
-  createOrReplacePlanShare, planShareUrl, copyToClipboard, revokeShare,
+  createOrReplacePlanShare, planShareUrl, copyToClipboardAsync, revokeShare,
 } from "@/lib/share";
 
 type Props = {
