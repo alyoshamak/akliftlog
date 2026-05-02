@@ -1,5 +1,5 @@
 import AppShell from "@/components/AppShell";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Upload as UploadIcon, FileText, AlertTriangle, Sparkles } from "lucide-react";
@@ -32,14 +32,18 @@ function defaultsForGoal(goal: Goal | undefined): { sets: number; reps: number }
 export default function Upload() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const [params] = useSearchParams();
+  const fromHub = params.get("from") === "hub";
   const { exercises, search, refresh } = useExercises();
   const { profile } = useProfile();
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<DraftDay[] | null>(null);
+  const [fileName, setFileName] = useState<string>("");
 
   const onFile = async (file: File) => {
     if (!user) return;
     setBusy(true);
+    setFileName(file.name);
     try {
       const path = `${user.id}/${Date.now()}-${file.name}`;
       const { error: upErr } = await supabase.storage.from("plan-uploads").upload(path, file);
@@ -100,9 +104,20 @@ export default function Upload() {
     if (!user || !draft) return;
     setBusy(true);
     try {
-      await supabase.from("workout_plans").update({ is_active: false }).eq("user_id", user.id);
+      // From onboarding, deactivate any existing plan and make this active.
+      // From hub, leave existing active plan alone and ask user later.
+      if (!fromHub) {
+        await supabase.from("workout_plans").update({ is_active: false }).eq("user_id", user.id);
+      }
+      const cleanName = fileName.replace(/\.[^/.]+$/, "") || "Uploaded Plan";
       const { data: plan, error } = await supabase
-        .from("workout_plans").insert({ user_id: user.id, name: "My Plan", is_active: true })
+        .from("workout_plans").insert({
+          user_id: user.id,
+          name: cleanName,
+          description: `Imported from ${fileName || "upload"}`,
+          source: "upload",
+          is_active: !fromHub,
+        })
         .select().maybeSingle();
       if (error || !plan) throw error;
 
@@ -132,7 +147,8 @@ export default function Upload() {
       await supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
       await refresh();
       toast.success("Plan saved!");
-      nav("/", { replace: true });
+      const askActive = fromHub ? "&askActive=1" : "";
+      nav(`/plan/edit?planId=${plan.id}&first=1${askActive}`, { replace: true });
     } catch (e: any) {
       toast.error(e.message ?? "Save failed");
     } finally {
