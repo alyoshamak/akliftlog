@@ -286,7 +286,16 @@ export default function Plan() {
     );
   };
 
-  const goHome = () => nav("/");
+  const goBack = () => nav("/plan");
+
+  const setThisActive = async () => {
+    if (!user || !planId) return;
+    await supabase.from("workout_plans").update({ is_active: false }).eq("user_id", user.id);
+    await supabase.from("workout_plans").update({ is_active: true }).eq("id", planId);
+    setIsActive(true);
+    setShowAskActive(false);
+    toast.success(`Active plan: ${planName}`);
+  };
 
   if (loading) {
     return (
@@ -302,11 +311,11 @@ export default function Plan() {
     <AppShell>
       <div className="px-4 pt-safe">
         <div className="flex items-center justify-between pt-3">
-          <button onClick={goHome} className="flex items-center gap-1 text-sm text-muted-foreground tap-44 -ml-2 px-2">
-            <ChevronLeft className="h-4 w-4" /> Home
+          <button onClick={goBack} className="flex items-center gap-1 text-sm text-muted-foreground tap-44 -ml-2 px-2">
+            <ChevronLeft className="h-4 w-4" /> Plans
           </button>
           {firstTime && (
-            <Button size="sm" onClick={goHome} className="bg-accent text-accent-foreground hover:bg-accent-glow font-bold">
+            <Button size="sm" onClick={goBack} className="bg-accent text-accent-foreground hover:bg-accent-glow font-bold">
               Done <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           )}
