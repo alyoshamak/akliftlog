@@ -1,132 +1,149 @@
+
 ## Goal
 
-In onboarding step 2, replace the current two-option screen with a **three-option** screen:
-1. **Start from a template** (new, surfaced first)
-2. **Build manually** (existing)
-3. **Upload a plan** (existing)
+Replace the current single-plan "Plan" tab (which dumps users straight into the editor) with a **Plans Hub** that supports multiple saved plans, switching the active plan, creating new plans through three flows, and a locked "Influencer Plans" tab teasing future curated plans.
 
-The template path: pick from 5 pre-built splits → preview the full plan → confirm to load it into the editor.
+The existing Plan editor (`/plan?planId=…`) stays exactly as it is — the hub just routes into it.
 
-## Templates (data only — no DB schema changes)
+## Data model
 
-All 5 templates are defined as a static TypeScript file using exercise **names** that match the existing library (verified — all 77 built-in exercises cover everything needed; no new exercises required).
+The current schema already supports multiple plans per user (`workout_plans.user_id`, `workout_plans.is_active`). We add:
 
-```
-src/lib/planTemplates.ts
-```
-
-Each template:
-```ts
-{
-  id: string;
-  name: string;
-  daysPerWeek: number;
-  description: string;       // short "who it's for"
-  dayFocus: string[];        // e.g. ["Push", "Pull", "Legs", "Push", "Pull", "Legs"]
-  days: Array<{
-    name: string;            // "Push A", "Upper Heavy", etc.
-    exercises: Array<{ name: string; sets: number; reps: number }>;
-  }>;
-}
+```sql
+ALTER TABLE workout_plans
+  ADD COLUMN description text,
+  ADD COLUMN source text NOT NULL DEFAULT 'custom'
+    CHECK (source IN ('custom','template','upload','influencer'));
 ```
 
-### Template content (concise — full sets/reps per exercise)
+- `description` — short label shown on cards (auto-set on template/upload/influencer creation, editable later in the editor).
+- `source` — provenance label, used for a small chip on each plan card.
 
-**1. Push / Pull / Legs (6 days/week)**
-- Push A: Barbell Bench Press 4×6, Overhead Press 3×8, Incline Dumbbell Press 3×10, Lateral Raise 3×12, Tricep Pushdown 3×12, Overhead Tricep Extension 3×12
-- Pull A: Pull-Up 4×8, Barbell Row 4×8, Lat Pulldown 3×10, Seated Cable Row 3×10, Face Pull 3×15, Barbell Curl 3×10
-- Legs A: Back Squat 4×6, Romanian Deadlift 3×8, Leg Press 3×10, Leg Curl 3×12, Calf Raise 4×15
-- Push B: Incline Barbell Bench Press 4×8, Seated Dumbbell Press 3×10, Dumbbell Bench Press 3×10, Cable Crossover 3×12, Skull Crusher 3×10, Tricep Pushdown 3×12
-- Pull B: Deadlift 3×5, Lat Pulldown 4×10, Dumbbell Row 3×10, Straight Arm Pulldown 3×12, Hammer Curl 3×10, Incline Dumbbell Curl 3×12
-- Legs B: Front Squat 4×8, Hip Thrust 3×10, Walking Lunge 3×10, Leg Extension 3×12, Leg Curl 3×12, Calf Raise 4×15
+**Active-plan invariant**: enforced in app code (existing pattern). Setting a plan active runs:
+```
+UPDATE workout_plans SET is_active=false WHERE user_id=$me AND id<>$target;
+UPDATE workout_plans SET is_active=true WHERE id=$target;
+```
 
-**2. Upper / Lower (4 days/week)**
-- Upper Heavy: Barbell Bench Press 4×6, Barbell Row 4×6, Overhead Press 3×8, Lat Pulldown 3×10, Barbell Curl 3×10, Skull Crusher 3×10
-- Lower Heavy: Back Squat 4×6, Romanian Deadlift 4×8, Leg Press 3×10, Leg Curl 3×10, Calf Raise 4×12, Plank 3×10
-- Upper Light: Incline Dumbbell Press 4×10, Seated Cable Row 4×10, Lateral Raise 3×12, Face Pull 3×15, Hammer Curl 3×12, Tricep Pushdown 3×12
-- Lower Light: Front Squat 3×10, Hip Thrust 3×10, Walking Lunge 3×10, Leg Extension 3×12, Calf Raise 4×15, Hanging Leg Raise 3×12
+**Influencer plans**: NOT created in this iteration. The tab is locked with a "Coming soon" overlay. No `influencers` / `influencer_plans` tables yet — deferred until we actually populate them. This keeps scope tight and avoids dead schema.
 
-**3. Bro Split (5 days/week)**
-- Chest: Barbell Bench Press 4×8, Incline Dumbbell Press 4×10, Machine Chest Press 3×10, Cable Crossover 3×12, Dumbbell Fly 3×12, Push-Up 3×15
-- Back: Pull-Up 4×8, Barbell Row 4×8, Lat Pulldown 3×10, Seated Cable Row 3×10, Straight Arm Pulldown 3×12, Face Pull 3×15
-- Shoulders: Overhead Press 4×8, Seated Dumbbell Press 3×10, Lateral Raise 4×12, Rear Delt Fly 3×12, Front Raise 3×12, Shrug 3×12
-- Legs: Back Squat 4×8, Leg Press 4×10, Romanian Deadlift 3×10, Leg Curl 3×12, Leg Extension 3×12, Calf Raise 4×15
-- Arms: Barbell Curl 4×10, Skull Crusher 4×10, Hammer Curl 3×12, Tricep Pushdown 3×12, Preacher Curl 3×12, Overhead Tricep Extension 3×12
+## Routing
 
-**4. Full Body (3 days/week)**
-- Day A: Back Squat 3×8, Barbell Bench Press 3×8, Barbell Row 3×8, Overhead Press 3×10, Plank 3×10
-- Day B: Deadlift 3×5, Incline Dumbbell Press 3×10, Lat Pulldown 3×10, Lateral Raise 3×12, Hanging Leg Raise 3×12
-- Day C: Front Squat 3×8, Dumbbell Bench Press 3×10, Seated Cable Row 3×10, Barbell Curl 3×10, Tricep Pushdown 3×12, Calf Raise 3×15
+| Route | Purpose |
+|---|---|
+| `/plan` (was the editor) | **NEW**: Plans Hub (list + tabs) |
+| `/plan/edit?planId=…` | The existing editor (renamed route) |
+| `/plan/new` | Create-new-plan chooser (3 cards: Build / Template / Upload) |
+| `/templates` | Existing — small change to accept `?planTarget=new` (always create a new plan instead of replacing active) |
+| `/upload` | Existing — same change |
 
-**5. PHUL — Power & Hypertrophy (4 days/week)**
-- Upper Heavy: Barbell Bench Press 4×5, Barbell Row 4×5, Overhead Press 3×6, Pull-Up 3×6, Skull Crusher 3×8, Barbell Curl 3×8
-- Lower Heavy: Back Squat 4×5, Deadlift 3×5, Leg Press 3×8, Leg Curl 3×8, Calf Raise 4×10
-- Upper Hypertrophy: Incline Dumbbell Press 4×10, Seated Cable Row 4×10, Lateral Raise 3×12, Cable Crossover 3×12, Hammer Curl 3×12, Tricep Pushdown 3×12
-- Lower Hypertrophy: Front Squat 3×10, Romanian Deadlift 3×10, Walking Lunge 3×10, Leg Extension 3×12, Leg Curl 3×12, Calf Raise 4×15
+The `BottomNav` "Plan" entry continues to point at `/plan` and now lands on the hub.
 
-## UI flow
+Anywhere in the app that links to `/plan?planId=…&first=1` (Onboarding, Templates, Upload) is updated to `/plan/edit?planId=…&first=1`.
 
-### 1. `src/pages/Onboarding.tsx` — step 2
+## Screens
 
-Add a third card above the existing two:
-- **"Start from a template"** (icon: LayoutGrid or Sparkles) → navigates to `/templates?from=onboarding`
-- Existing **"Build manually"** and **"Upload a plan"** stay as-is
+### 1. Plans Hub — `src/pages/PlansHub.tsx`
 
-The "Build manually" handler today creates an empty active plan and sends user to `/plan?planId=…&first=1`. The template flow will use the same end-state but pre-populated.
+Top of screen: tabs `My Plans` | `Influencer Plans` (using `Tabs` from shadcn).
 
-### 2. New page: `src/pages/Templates.tsx` (route `/templates`)
+**My Plans tab:**
 
-A list view showing all 5 template cards. Each card displays:
-- Template name (large, bold)
-- Days/week badge ("6 days/week")
-- 1-line description
-- Day focus chips: e.g. `Push · Pull · Legs · Push · Pull · Legs`
+- **Active Plan card** (highlighted with `ring-2 ring-accent`):
+  - Plan name (large)
+  - Day count + source chip (`Template`, `Upload`, `Influencer`, or none for Custom)
+  - Description (if any), one line truncated
+  - Primary button: **Edit** → `/plan/edit?planId=…`
 
-Tapping a card opens a **preview** view (same page, second state, or modal sheet — using a dialog/sheet keeps the back nav clean):
-- Shows each day name + collapsible exercise list (name + sets×reps)
-- Sticky bottom bar with **"Use this template"** button + **"Cancel"**
-- "Use this template" → loads it (see below) → navigates to `/plan?planId=…&first=1`
+- **My Plan Library** (collapsible section, default open if >1 plan, hidden if only the active plan exists):
+  - Heading "My Plans" + count
+  - One card per non-active plan:
+    - Name, day count, source chip, description, "Updated {relative}" timestamp
+    - Action row: **Set Active**, **Edit**, **Duplicate**, **Delete** (Delete uses `AlertDialog` confirm; blocked if it's the only plan with a confirmation that warns no plan will be active)
 
-Header has a back button. If `?from=onboarding`, back returns to onboarding step 2.
+- **Create New Plan** button (full-width, prominent, accent color) → `/plan/new`
 
-### 3. Loading a template
+**Influencer Plans tab:**
 
-When user confirms:
-1. Deactivate any existing active plan for the user (`workout_plans.is_active = false`).
-2. Insert a new `workout_plans` row with `name = template.name`, `is_active = true`.
-3. For each template day (in order):
-   - Insert a `plan_days` row.
-   - For each exercise: look up `exercise_id` by exact name from `exercises` table (server-side query filtered to `owner_id is null`). Insert `plan_day_exercises` with `target_sets`, `target_reps`, `position`.
-4. Mark profile `onboarded = true`.
-5. Navigate to `/plan?planId={id}&first=1`.
+- Single locked panel: lock icon, "Curated plans from coaches and athletes — coming soon." Greyed-out preview chips (e.g. mock cards with blur). No interactive content.
 
-If any template exercise name is missing from the library (shouldn't happen — verified — but defensive), skip it and continue, then toast a soft warning.
+### 2. Create New Plan chooser — `src/pages/PlanNew.tsx`
 
-### 4. Entry points
+Reuses the same three cards from Onboarding step 2 (extract into `src/components/PlanCreateOptions.tsx` so onboarding and this page share the markup):
 
-- Primarily reached from onboarding step 2.
-- Also reachable from the existing Plan editor as a future "Replace with template" affordance — **out of scope** for this change.
+1. **Start from a template** → `/templates?from=hub`
+2. **Build from scratch** → creates an empty (non-active) plan and navigates to `/plan/edit?planId=…&first=1&askActive=1`
+3. **Upload a plan** → `/upload?from=hub`
+
+After Build / Template / Upload completes, the user lands in the editor. If `askActive=1` is in the URL **and** there's already another active plan, show a one-time `AlertDialog` on mount: "Set this as your active plan?" with **Set as Active** / **Save for Later**. Selecting Set Active flips `is_active`. Selecting Save for Later leaves the new plan inactive.
+
+### 3. Editor (`/plan/edit`)
+
+Same component as today's `Plan.tsx`, just moved to a new route path. Adjustments:
+
+- Reads `planId` from query (already does)
+- If `askActive=1` query param is present after creation, run the prompt described above on first render.
+- Add a small **back-to-hub** breadcrumb at the top (`← Plans` instead of `← Home`).
+
+### 4. Onboarding flow changes
+
+- The "Build manually" button in onboarding currently inserts an active plan with `source='custom'` (default). Update to set `source='custom'` and `description='Custom plan'` defaults. No behavior change.
+- Template and upload paths set `source='template'` / `source='upload'` and a sensible default `description` (e.g. template name's split style, or upload file name).
+
+## Behaviors
+
+**Setting a plan active** (Hub action):
+1. `UPDATE workout_plans SET is_active=false WHERE user_id=$me`
+2. `UPDATE workout_plans SET is_active=true WHERE id=$target`
+3. Toast: "Active plan: {name}"
+4. Refetch the hub list.
+
+**Duplicate a plan**:
+1. Insert a new `workout_plans` row with `name='{original} (Copy)'`, `is_active=false`, same `source` and `description`.
+2. Fetch original `plan_days` + `plan_day_exercises`.
+3. Insert copies under the new plan (new IDs, same day_number/name/exercise_id/position/sets/reps/superset_group).
+4. Toast: "Duplicated."
+
+**Delete a plan**:
+- Confirm via `AlertDialog`.
+- Cascade is **not** in the schema — explicitly delete child rows first (`plan_day_exercises` via day join, then `plan_days`, then the plan). The simplest version: query day IDs → delete `plan_day_exercises` where `day_id in (…)` → delete `plan_days` where `plan_id=…` → delete the plan.
+- If deleting the active plan, do not auto-promote another — let the home screen show the "no active plan" state and prompt the user to pick one. Show a toast warning.
+
+**Home screen** (`Home.tsx`):
+- Already keys off `is_active = true`. No code change needed beyond updating any `/plan` links that meant "editor" to point at `/plan/edit`. The empty-state CTA "Set up my plan" now goes to `/plan` (the hub) which is the right place.
 
 ## Files
 
 **New:**
-- `src/lib/planTemplates.ts` — the 5 template definitions
-- `src/pages/Templates.tsx` — list + preview UI + load handler
+- `src/pages/PlansHub.tsx` — the hub (tabs + active card + library + locked influencer tab)
+- `src/pages/PlanNew.tsx` — the create-new chooser
+- `src/components/PlanCreateOptions.tsx` — shared 3-card chooser used by hub and onboarding
 
 **Edited:**
-- `src/pages/Onboarding.tsx` — add the third "Start from a template" card to step 2
-- `src/App.tsx` — add `/templates` route (auth-gated, same as other onboarded pages)
+- `src/App.tsx` — change `/plan` to render `PlansHub`, add `/plan/edit` for the editor, add `/plan/new`
+- `src/pages/Plan.tsx` — minor: route param compatibility, breadcrumb back to `/plan` instead of `/`, optional `askActive` prompt on first render
+- `src/pages/Onboarding.tsx` — use shared `PlanCreateOptions`; set `source` + `description` on manual create
+- `src/pages/Templates.tsx` — when not coming from onboarding, do **not** deactivate other plans; just create the new one and (if `from=hub`) navigate to editor with `askActive=1`. Set `source='template'`, `description=tpl.name`.
+- `src/pages/Upload.tsx` — on successful parse-into-plan, set `source='upload'`, `description` from filename. If `from=hub`, do not auto-activate; route to editor with `askActive=1`.
+
+**DB migration:**
+- Add `description` and `source` columns to `workout_plans` (see SQL above). No RLS change needed (existing `plans_own` policy covers all operations).
 
 **Not changed:**
-- DB schema, RLS policies, exercise library, edge functions
-
-## Validation
-
-- Verified all exercises in the 5 templates exist in the `exercises` table with `owner_id is null` (queried 77 built-ins; all referenced names match).
-- After loading, user lands in the existing Plan editor with the plan name and all days/exercises pre-filled, fully editable (rename, reorder, add/remove, change sets/reps, supersets) before any "save" — they're already saved as the active plan, but the editor persists edits live as today.
+- Editor internals (`Plan.tsx` body), `plan_days`, `plan_day_exercises`, `exercises`, RLS, edge functions.
+- No influencer schema yet.
 
 ## Out of scope
 
-- Saving custom user-made templates.
-- Periodization (week-by-week progressions inside one plan).
-- A "switch template" button inside the existing plan editor.
+- Real influencer plans data, admin tooling, or "Save to My Plans" flow (placeholder UI only with lock + "coming soon").
+- Periodization or weekly progressions.
+- Reordering plans manually in the library (sorted by `updated_at desc`).
+- Sharing/exporting a plan.
+
+## Validation
+
+- After the migration, existing plans get `source='custom'`, `description=null` — fine.
+- Setting active still satisfies the "exactly one active per user" expectation enforced at write time.
+- `Home.tsx` continues to render the active plan; if the user deletes their active plan, Home gracefully falls through to the empty state and links to the hub.
+- Editor route works whether reached from hub (Edit), create flows (with `?first=1&askActive=1`), or onboarding (existing flow).
+

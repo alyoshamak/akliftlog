@@ -9,6 +9,8 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Home from "./pages/Home";
 import Plan from "./pages/Plan";
+import PlansHub from "./pages/PlansHub";
+import PlanNew from "./pages/PlanNew";
 import Session from "./pages/Session";
 import History from "./pages/History";
 import Progress from "./pages/Progress";
@@ -30,7 +32,9 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
             <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
-            <Route path="/plan" element={<RequireAuth><Plan /></RequireAuth>} />
+            <Route path="/plan" element={<RequireAuth><PlansHub /></RequireAuth>} />
+            <Route path="/plan/new" element={<RequireAuth><PlanNew /></RequireAuth>} />
+            <Route path="/plan/edit" element={<RequireAuth><Plan /></RequireAuth>} />
             <Route path="/session/:id" element={<RequireAuth><Session /></RequireAuth>} />
             <Route path="/history" element={<RequireAuth><History /></RequireAuth>} />
             <Route path="/progress" element={<RequireAuth><Progress /></RequireAuth>} />

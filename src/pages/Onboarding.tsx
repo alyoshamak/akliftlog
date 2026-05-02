@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Dumbbell, Flame, Mountain, Heart, Pencil, Upload, ChevronRight, LayoutGrid } from "lucide-react";
+import { Dumbbell, Flame, Mountain, Heart, ChevronRight } from "lucide-react";
+import PlanCreateOptions from "@/components/PlanCreateOptions";
 
 type Goal = "hypertrophy" | "strength" | "endurance";
 
@@ -33,7 +34,13 @@ export default function Onboarding() {
     setBusy(true);
     const { data: plan, error } = await supabase
       .from("workout_plans")
-      .insert({ user_id: user.id, name: "My Plan", is_active: true })
+      .insert({
+        user_id: user.id,
+        name: "My Plan",
+        description: "Custom plan",
+        source: "custom",
+        is_active: true,
+      })
       .select()
       .maybeSingle();
     if (error || !plan) {
@@ -43,7 +50,7 @@ export default function Onboarding() {
     }
     await supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
     setBusy(false);
-    nav(`/plan?planId=${plan.id}&first=1`, { replace: true });
+    nav(`/plan/edit?planId=${plan.id}&first=1`, { replace: true });
   };
 
   const goUpload = async () => {
@@ -102,53 +109,17 @@ export default function Onboarding() {
         <div className="mt-10 animate-fade-in">
           <h1 className="text-3xl font-extrabold tracking-tight">Set up your plan</h1>
           <p className="mt-2 text-sm text-muted-foreground">Pick a template, build it yourself, or upload a doc.</p>
-          <div className="mt-8 space-y-3">
-            <button
-              onClick={async () => {
+          <div className="mt-8">
+            <PlanCreateOptions
+              disabled={busy}
+              onTemplate={async () => {
                 if (!user) return;
                 await supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
                 nav("/templates?from=onboarding");
               }}
-              disabled={busy}
-              className="w-full surface-card p-5 text-left tap-56 hover:bg-surface-2 transition-colors flex items-start gap-4"
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                <LayoutGrid className="h-5 w-5" />
-              </div>
-              <div className="flex-1">
-                <div className="font-bold">Start from a template</div>
-                <div className="text-sm text-muted-foreground">PPL, Upper/Lower, Bro Split, Full Body, PHUL.</div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground self-center" />
-            </button>
-            <button
-              onClick={goManual}
-              disabled={busy}
-              className="w-full surface-card p-5 text-left tap-56 hover:bg-surface-2 transition-colors flex items-start gap-4"
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                <Pencil className="h-5 w-5" />
-              </div>
-              <div className="flex-1">
-                <div className="font-bold">Build manually</div>
-                <div className="text-sm text-muted-foreground">Pick days and exercises yourself.</div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground self-center" />
-            </button>
-            <button
-              onClick={goUpload}
-              disabled={busy}
-              className="w-full surface-card p-5 text-left tap-56 hover:bg-surface-2 transition-colors flex items-start gap-4"
-            >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                <Upload className="h-5 w-5" />
-              </div>
-              <div className="flex-1">
-                <div className="font-bold">Upload a plan</div>
-                <div className="text-sm text-muted-foreground">PDF, image, spreadsheet, or text. We'll parse it.</div>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground self-center" />
-            </button>
+              onManual={goManual}
+              onUpload={goUpload}
+            />
           </div>
         </div>
       )}

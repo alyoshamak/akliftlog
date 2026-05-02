@@ -8,6 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Trash2, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ExercisePicker from "@/components/ExercisePicker";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -34,14 +38,17 @@ export default function Plan() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const firstTime = params.get("first") === "1";
+  const askActive = params.get("askActive") === "1";
 
   const [planId, setPlanId] = useState<string | null>(params.get("planId"));
   const [planName, setPlanName] = useState("My Plan");
+  const [isActive, setIsActive] = useState<boolean>(false);
   const [days, setDays] = useState<Day[]>([]);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<DayExercise[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showAskActive, setShowAskActive] = useState(false);
 
   // Load or create active plan
   useEffect(() => {
@@ -50,31 +57,35 @@ export default function Plan() {
       setLoading(true);
       let pid = planId;
       if (!pid) {
-        const { data: existing } = await supabase
+        // No plan id provided — bounce back to the hub.
+        nav("/plan", { replace: true });
+        return;
+      }
+      const { data: p } = await supabase
+        .from("workout_plans")
+        .select("id, name, is_active")
+        .eq("id", pid)
+        .maybeSingle();
+      if (!p) {
+        nav("/plan", { replace: true });
+        return;
+      }
+      setPlanName(p.name);
+      setIsActive(!!p.is_active);
+      if (askActive && !p.is_active) {
+        // Check if another plan is active
+        const { data: other } = await supabase
           .from("workout_plans")
-          .select("*")
+          .select("id")
           .eq("user_id", user.id)
           .eq("is_active", true)
-          .order("created_at", { ascending: false })
+          .neq("id", pid)
           .limit(1)
           .maybeSingle();
-        if (existing) {
-          pid = existing.id;
-          setPlanName(existing.name);
-        } else {
-          const { data: created } = await supabase
-            .from("workout_plans")
-            .insert({ user_id: user.id, name: "My Plan", is_active: true })
-            .select()
-            .maybeSingle();
-          pid = created?.id ?? null;
-        }
-        if (pid) setPlanId(pid);
-      } else {
-        const { data: p } = await supabase.from("workout_plans").select("*").eq("id", pid).maybeSingle();
-        if (p) setPlanName(p.name);
+        // Always prompt after creating a new plan, regardless of whether another active exists
+        setShowAskActive(true);
       }
-      if (pid) await loadDays(pid);
+      await loadDays(pid);
       setLoading(false);
     })();
   }, [user]);
@@ -275,7 +286,16 @@ export default function Plan() {
     );
   };
 
-  const goHome = () => nav("/");
+  const goBack = () => nav("/plan");
+
+  const setThisActive = async () => {
+    if (!user || !planId) return;
+    await supabase.from("workout_plans").update({ is_active: false }).eq("user_id", user.id);
+    await supabase.from("workout_plans").update({ is_active: true }).eq("id", planId);
+    setIsActive(true);
+    setShowAskActive(false);
+    toast.success(`Active plan: ${planName}`);
+  };
 
   if (loading) {
     return (
@@ -291,11 +311,11 @@ export default function Plan() {
     <AppShell>
       <div className="px-4 pt-safe">
         <div className="flex items-center justify-between pt-3">
-          <button onClick={goHome} className="flex items-center gap-1 text-sm text-muted-foreground tap-44 -ml-2 px-2">
-            <ChevronLeft className="h-4 w-4" /> Home
+          <button onClick={goBack} className="flex items-center gap-1 text-sm text-muted-foreground tap-44 -ml-2 px-2">
+            <ChevronLeft className="h-4 w-4" /> Plans
           </button>
           {firstTime && (
-            <Button size="sm" onClick={goHome} className="bg-accent text-accent-foreground hover:bg-accent-glow font-bold">
+            <Button size="sm" onClick={goBack} className="bg-accent text-accent-foreground hover:bg-accent-glow font-bold">
               Done <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           )}
@@ -421,6 +441,26 @@ export default function Plan() {
         onPick={onPickExercise}
         excludeIds={exercises.map((e) => e.exercise_id)}
       />
+
+      <AlertDialog open={showAskActive} onOpenChange={(o) => !o && setShowAskActive(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Set this as your active plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your active plan drives the home screen's "Next Up" and "Start Workout" buttons. You can switch any time from the Plans tab.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowAskActive(false)}>Save for Later</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={setThisActive}
+              className="bg-accent text-accent-foreground hover:bg-accent-glow"
+            >
+              Set as Active
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

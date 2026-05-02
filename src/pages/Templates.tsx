@@ -13,12 +13,14 @@ export default function Templates() {
   const { user } = useAuth();
   const [params] = useSearchParams();
   const fromOnboarding = params.get("from") === "onboarding";
+  const fromHub = params.get("from") === "hub";
   const [selected, setSelected] = useState<PlanTemplate | null>(null);
   const [busy, setBusy] = useState(false);
 
   const goBack = () => {
     if (selected) return setSelected(null);
     if (fromOnboarding) return nav("/onboarding", { replace: true });
+    if (fromHub) return nav("/plan/new", { replace: true });
     nav(-1);
   };
 
@@ -40,15 +42,23 @@ export default function Templates() {
         (exRows ?? []).map((r: any) => [r.name, r.id])
       );
 
-      // Deactivate any existing active plan
-      await supabase
-        .from("workout_plans")
-        .update({ is_active: false })
-        .eq("user_id", user.id);
+      // Only deactivate other plans when this is the user's first plan (onboarding)
+      if (fromOnboarding) {
+        await supabase
+          .from("workout_plans")
+          .update({ is_active: false })
+          .eq("user_id", user.id);
+      }
 
       const { data: plan, error: planErr } = await supabase
         .from("workout_plans")
-        .insert({ user_id: user.id, name: tpl.name, is_active: true })
+        .insert({
+          user_id: user.id,
+          name: tpl.name,
+          description: tpl.description,
+          source: "template",
+          is_active: fromOnboarding, // only activate from onboarding; hub flow asks user
+        })
         .select()
         .maybeSingle();
       if (planErr || !plan) throw planErr ?? new Error("Could not create plan");
@@ -90,7 +100,8 @@ export default function Templates() {
       } else {
         toast.success("Template loaded! Customize it below.");
       }
-      nav(`/plan?planId=${plan.id}&first=1`, { replace: true });
+      const askActive = fromHub ? "&askActive=1" : "";
+      nav(`/plan/edit?planId=${plan.id}&first=1${askActive}`, { replace: true });
     } catch (e: any) {
       toast.error(e.message ?? "Could not load template");
     } finally {
