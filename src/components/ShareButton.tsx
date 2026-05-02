@@ -49,20 +49,21 @@ export default function ShareButton({ planId, planName, planDescription, variant
     if (!user || busy) return;
     setBusy(true);
     try {
-      const existing = !regenerate ? await findExisting() : null;
-      let slug: string;
-      if (existing) {
-        slug = existing.slug;
-      } else {
-        const sharedBy = await getName();
-        const res = await createOrReplacePlanShare(
-          user.id, planId, planName, planDescription, sharedBy,
-        );
-        slug = res.slug;
-      }
-      const url = planShareUrl(slug);
-      const ok = await copyToClipboard(url);
-      toast.success(ok ? "Plan link copied!" : "Plan link ready", { description: url });
+      const { ok, text } = await copyToClipboardAsync(async () => {
+        const existing = !regenerate ? await findExisting() : null;
+        let slug: string;
+        if (existing) {
+          slug = existing.slug;
+        } else {
+          const sharedBy = await getName();
+          const res = await createOrReplacePlanShare(
+            user.id, planId, planName, planDescription, sharedBy,
+          );
+          slug = res.slug;
+        }
+        return planShareUrl(slug);
+      });
+      toast.success(ok ? "Plan link copied!" : "Plan link ready", { description: text });
     } catch (e: any) {
       toast.error(e.message ?? "Could not generate link");
     } finally {
