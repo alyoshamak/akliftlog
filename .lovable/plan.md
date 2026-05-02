@@ -119,3 +119,18 @@ Lovable hosting serves the SPA `index.html`, so true per-route OG tags require s
 - Avatar uploads (no avatar field exists today; the public profile shows initials).
 - Analytics on share link views.
 
+
+---
+
+## Implementation status: complete
+
+- Migration applied: `username` on profiles, `profile_shares`, `plan_shares`, two SECURITY DEFINER public RPCs (`get_public_profile_stats`, `get_public_plan_share`).
+- Public routes added: `/u/:slug` (live profile snapshot) and `/p/:slug` (immutable plan snapshot).
+- Share entry points: `ShareButton` dropdown on PlansHub (active card + library cards) and Plan editor header; "Share Profile" button in Profile.
+- Recipient flow: copy-to-library auto-runs after auth via `?next=/p/{slug}?copy=1`; "Set as active" prompt after copy.
+- Shared Links manager added to Profile.
+- Two SECURITY DEFINER warnings are intentional and recorded in security memory.
+
+### Known limitations (not implemented)
+- Per-route Open Graph tags (would need an edge function for server-rendered HTML to make iMessage/WhatsApp previews work).
+- Avatar uploads (no avatar_url column exists today; profile shows initials).
