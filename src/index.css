@@ -166,6 +166,11 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  /* Tighter safe-area for the bottom nav: keeps labels clear of the home
+     indicator but trims the wasted gap on devices with large insets. */
+  .pb-safe-nav {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px);
+  }
   .pt-safe {
     padding-top: calc(env(safe-area-inset-top) + 0.5rem);
   }
