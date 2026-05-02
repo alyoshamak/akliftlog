@@ -23,8 +23,47 @@ export async function copyToClipboard(text: string) {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    return false;
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      ta.setAttribute("readonly", "");
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
   }
+}
+
+/**
+ * iOS-friendly clipboard write. Pass a Promise that resolves to the URL.
+ * iOS Safari preserves the user-activation if we hand it a ClipboardItem
+ * built around the pending Promise. Falls back to the async writeText path
+ * on browsers that don't support ClipboardItem.
+ */
+export async function copyToClipboardAsync(getText: () => Promise<string>) {
+  try {
+    if (typeof ClipboardItem !== "undefined" && (navigator.clipboard as any)?.write) {
+      const item = new ClipboardItem({
+        "text/plain": getText().then(
+          (t) => new Blob([t], { type: "text/plain" }),
+        ) as any,
+      });
+      await (navigator.clipboard as any).write([item]);
+      return { ok: true, text: await getText() };
+    }
+  } catch {
+    /* fall through */
+  }
+  const text = await getText();
+  const ok = await copyToClipboard(text);
+  return { ok, text };
 }
 
 export type PlanSnapshot = {

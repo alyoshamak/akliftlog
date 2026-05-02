@@ -10,7 +10,7 @@ import BodyWeightLog from "@/components/BodyWeightLog";
 import { applyTheme, getStoredTheme } from "@/lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  copyToClipboard, getOrCreateProfileShare, planShareUrl, profileShareUrl, revokeShare,
+  copyToClipboard, copyToClipboardAsync, getOrCreateProfileShare, planShareUrl, profileShareUrl, revokeShare,
 } from "@/lib/share";
 import { Share2, Copy, Trash2, Link as LinkIcon, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -72,10 +72,13 @@ export default function Profile() {
     if (!user || busy) return;
     setBusy(true);
     try {
-      const { slug } = await getOrCreateProfileShare(user.id);
-      const url = profileShareUrl(slug);
-      const ok = await copyToClipboard(url);
-      toast.success(ok ? "Link copied!" : "Profile link ready", { description: url });
+      // Use the iOS-friendly path: hand the clipboard a Promise so the
+      // user-gesture context is preserved across the network request.
+      const { ok, text } = await copyToClipboardAsync(async () => {
+        const { slug } = await getOrCreateProfileShare(user.id);
+        return profileShareUrl(slug);
+      });
+      toast.success(ok ? "Link copied!" : "Profile link ready", { description: text });
       loadShares();
     } catch (e: any) {
       toast.error(e.message ?? "Could not generate link");
