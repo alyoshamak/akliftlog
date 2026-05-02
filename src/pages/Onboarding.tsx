@@ -140,7 +140,7 @@ export default function Onboarding() {
               disabled={busy}
               className="w-full surface-card p-5 text-left tap-56 hover:bg-surface-2 transition-colors flex items-start gap-4"
             >
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
                 <Upload className="h-5 w-5" />
               </div>
               <div className="flex-1">
