@@ -8,6 +8,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Trash2, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ExercisePicker from "@/components/ExercisePicker";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -34,14 +38,17 @@ export default function Plan() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const firstTime = params.get("first") === "1";
+  const askActive = params.get("askActive") === "1";
 
   const [planId, setPlanId] = useState<string | null>(params.get("planId"));
   const [planName, setPlanName] = useState("My Plan");
+  const [isActive, setIsActive] = useState<boolean>(false);
   const [days, setDays] = useState<Day[]>([]);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [exercises, setExercises] = useState<DayExercise[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showAskActive, setShowAskActive] = useState(false);
 
   // Load or create active plan
   useEffect(() => {
@@ -50,31 +57,35 @@ export default function Plan() {
       setLoading(true);
       let pid = planId;
       if (!pid) {
-        const { data: existing } = await supabase
+        // No plan id provided — bounce back to the hub.
+        nav("/plan", { replace: true });
+        return;
+      }
+      const { data: p } = await supabase
+        .from("workout_plans")
+        .select("id, name, is_active")
+        .eq("id", pid)
+        .maybeSingle();
+      if (!p) {
+        nav("/plan", { replace: true });
+        return;
+      }
+      setPlanName(p.name);
+      setIsActive(!!p.is_active);
+      if (askActive && !p.is_active) {
+        // Check if another plan is active
+        const { data: other } = await supabase
           .from("workout_plans")
-          .select("*")
+          .select("id")
           .eq("user_id", user.id)
           .eq("is_active", true)
-          .order("created_at", { ascending: false })
+          .neq("id", pid)
           .limit(1)
           .maybeSingle();
-        if (existing) {
-          pid = existing.id;
-          setPlanName(existing.name);
-        } else {
-          const { data: created } = await supabase
-            .from("workout_plans")
-            .insert({ user_id: user.id, name: "My Plan", is_active: true })
-            .select()
-            .maybeSingle();
-          pid = created?.id ?? null;
-        }
-        if (pid) setPlanId(pid);
-      } else {
-        const { data: p } = await supabase.from("workout_plans").select("*").eq("id", pid).maybeSingle();
-        if (p) setPlanName(p.name);
+        // Always prompt after creating a new plan, regardless of whether another active exists
+        setShowAskActive(true);
       }
-      if (pid) await loadDays(pid);
+      await loadDays(pid);
       setLoading(false);
     })();
   }, [user]);
