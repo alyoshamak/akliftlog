@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import {
   Pencil, Plus, Copy, Trash2, CheckCircle2, Lock, Sparkles, ChevronDown, ChevronUp,
 } from "lucide-react";
+import ShareButton from "@/components/ShareButton";
 
 type Plan = {
   id: string;
