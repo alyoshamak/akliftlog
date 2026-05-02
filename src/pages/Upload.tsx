@@ -2,20 +2,38 @@ import AppShell from "@/components/AppShell";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Upload as UploadIcon, FileText } from "lucide-react";
+import { ChevronLeft, Upload as UploadIcon, FileText, AlertTriangle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useExercises } from "@/hooks/useExercises";
+import { useProfile } from "@/hooks/useProfile";
 import { Input } from "@/components/ui/input";
 
-type DraftExercise = { name: string; sets: number; reps: number; matched_id?: string };
+type Confidence = "high" | "medium" | "low";
+type DraftExercise = {
+  name: string;
+  sets: number;
+  reps: number;
+  matched_id?: string;
+  confidence?: Confidence;
+  defaultsApplied?: boolean;
+};
 type DraftDay = { name: string; exercises: DraftExercise[] };
+
+type Goal = "hypertrophy" | "strength" | "endurance";
+
+function defaultsForGoal(goal: Goal | undefined): { sets: number; reps: number } {
+  if (goal === "strength") return { sets: 5, reps: 5 };
+  if (goal === "endurance") return { sets: 3, reps: 15 };
+  return { sets: 3, reps: 10 };
+}
 
 export default function Upload() {
   const { user } = useAuth();
   const nav = useNavigate();
   const { exercises, search, refresh } = useExercises();
+  const { profile } = useProfile();
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<DraftDay[] | null>(null);
 
@@ -28,19 +46,49 @@ export default function Upload() {
       if (upErr) throw upErr;
 
       const { data, error } = await supabase.functions.invoke("parse-plan-document", {
-        body: { path, mime: file.type, name: file.name },
+        body: { path, mime: file.type, name: file.name, goal: profile?.goal },
       });
       if (error) throw error;
-      const days: DraftDay[] = data?.days ?? [];
-      // Match each exercise to library
-      for (const d of days) {
-        for (const e of d.exercises) {
-          const hits = search(e.name);
-          if (hits[0]) e.matched_id = hits[0].id;
-        }
+
+      const rawDays: any[] = data?.days ?? [];
+      if (rawDays.length === 0) {
+        const reason = data?.reason;
+        const msg =
+          reason === "pdf_render_failed" ? "Couldn't read that PDF. Try a clearer scan or screenshot."
+          : reason === "empty_spreadsheet" ? "That spreadsheet looks empty."
+          : reason === "empty_file" ? "That file is empty."
+          : reason === "unsupported_format" ? "Unsupported file format. Try an image, PDF, CSV, or XLSX."
+          : "We couldn't find a workout plan in this file. Try a clearer image or paste the text.";
+        toast.error(msg);
+        return;
       }
+
+      const def = defaultsForGoal(profile?.goal);
+      const days: DraftDay[] = rawDays.map((d: any) => ({
+        name: d.name ?? "Day",
+        exercises: (d.exercises ?? []).map((e: any) => {
+          const missingSets = e.sets == null;
+          const missingReps = e.reps == null;
+          const ex: DraftExercise = {
+            name: e.name,
+            sets: missingSets ? def.sets : Number(e.sets),
+            reps: missingReps ? def.reps : Number(e.reps),
+            confidence: e.confidence,
+            defaultsApplied: missingSets || missingReps,
+          };
+          const hits = search(ex.name);
+          if (hits[0]) ex.matched_id = hits[0].id;
+          return ex;
+        }),
+      }));
+
       setDraft(days);
-      toast.success("Plan parsed. Review and save.");
+      const filledCount = days.flatMap(d => d.exercises).filter(e => e.defaultsApplied).length;
+      if (filledCount > 0) {
+        toast.success(`Plan parsed. ${filledCount} exercise${filledCount === 1 ? "" : "s"} auto-filled from your goal.`);
+      } else {
+        toast.success("Plan parsed. Review and save.");
+      }
     } catch (e: any) {
       toast.error(e.message ?? "Could not parse plan");
     } finally {
@@ -52,7 +100,6 @@ export default function Upload() {
     if (!user || !draft) return;
     setBusy(true);
     try {
-      // Deactivate prior plan
       await supabase.from("workout_plans").update({ is_active: false }).eq("user_id", user.id);
       const { data: plan, error } = await supabase
         .from("workout_plans").insert({ user_id: user.id, name: "My Plan", is_active: true })
@@ -71,7 +118,7 @@ export default function Upload() {
           if (!exId) {
             const { data: custom } = await supabase
               .from("exercises")
-              .insert({ name: e.name, muscle_group: "chest", is_custom: true, owner_id: user.id })
+              .insert({ name: e.name, muscle_group: "other", is_custom: true, owner_id: user.id })
               .select().maybeSingle();
             exId = custom?.id;
           }
@@ -92,6 +139,10 @@ export default function Upload() {
       setBusy(false);
     }
   };
+
+  const allEx = draft?.flatMap(d => d.exercises) ?? [];
+  const filledCount = allEx.filter(e => e.defaultsApplied).length;
+  const lowConfCount = allEx.filter(e => e.confidence === "low").length;
 
   return (
     <AppShell hideNav>
@@ -118,6 +169,25 @@ export default function Upload() {
 
         {draft && (
           <div className="mt-5 space-y-4 pb-32">
+            {(filledCount > 0 || lowConfCount > 0) && (
+              <div className="surface-card p-3 text-xs space-y-1.5 border border-accent/30">
+                {filledCount > 0 && (
+                  <div className="flex items-start gap-2">
+                    <Sparkles className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                    <span>
+                      <span className="font-semibold">{filledCount}</span> exercise{filledCount === 1 ? "" : "s"} had no sets/reps in your file — we filled defaults based on your goal ({profile?.goal ?? "hypertrophy"}). Edit any value below.
+                    </span>
+                  </div>
+                )}
+                {lowConfCount > 0 && (
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0 mt-0.5" />
+                    <span><span className="font-semibold">{lowConfCount}</span> low-confidence entr{lowConfCount === 1 ? "y" : "ies"} — please double-check before saving.</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {draft.map((day, di) => (
               <div key={di} className="surface-card p-4">
                 <Input
@@ -144,12 +214,26 @@ export default function Upload() {
                           className={`flex-1 ${ex.matched_id ? "" : "border-destructive"}`}
                         />
                       </div>
+                      {(ex.defaultsApplied || ex.confidence === "low") && (
+                        <div className="flex items-center gap-1.5 pl-6 flex-wrap">
+                          {ex.defaultsApplied && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-accent/15 text-accent px-2 py-0.5 text-[10px] font-semibold">
+                              <Sparkles className="h-3 w-3" /> auto-filled
+                            </span>
+                          )}
+                          {ex.confidence === "low" && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/15 text-yellow-500 px-2 py-0.5 text-[10px] font-semibold">
+                              <AlertTriangle className="h-3 w-3" /> low confidence
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center justify-end gap-1.5 pl-6">
                         <DraftStepper
                           value={ex.sets}
                           onChange={(v) => {
                             const next = [...draft];
-                            next[di].exercises[ei] = { ...ex, sets: v };
+                            next[di].exercises[ei] = { ...ex, sets: v, defaultsApplied: false };
                             setDraft(next);
                           }}
                           min={1} max={10} label="sets"
@@ -159,7 +243,7 @@ export default function Upload() {
                           value={ex.reps}
                           onChange={(v) => {
                             const next = [...draft];
-                            next[di].exercises[ei] = { ...ex, reps: v };
+                            next[di].exercises[ei] = { ...ex, reps: v, defaultsApplied: false };
                             setDraft(next);
                           }}
                           min={1} max={50} label="reps"
