@@ -17,6 +17,8 @@ import Progress from "./pages/Progress";
 import Profile from "./pages/Profile";
 import Upload from "./pages/Upload";
 import Templates from "./pages/Templates";
+import PublicProfile from "./pages/PublicProfile";
+import PublicPlan from "./pages/PublicPlan";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +32,8 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/u/:slug" element={<PublicProfile />} />
+            <Route path="/p/:slug" element={<PublicPlan />} />
             <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
             <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
             <Route path="/plan" element={<RequireAuth><PlansHub /></RequireAuth>} />
