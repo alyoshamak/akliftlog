@@ -441,6 +441,26 @@ export default function Plan() {
         onPick={onPickExercise}
         excludeIds={exercises.map((e) => e.exercise_id)}
       />
+
+      <AlertDialog open={showAskActive} onOpenChange={(o) => !o && setShowAskActive(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Set this as your active plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your active plan drives the home screen's "Next Up" and "Start Workout" buttons. You can switch any time from the Plans tab.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowAskActive(false)}>Save for Later</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={setThisActive}
+              className="bg-accent text-accent-foreground hover:bg-accent-glow"
+            >
+              Set as Active
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
