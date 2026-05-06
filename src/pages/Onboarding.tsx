@@ -28,6 +28,14 @@ export default function Onboarding() {
     setStep(2);
   };
 
+  const platform = useMemo<"ios" | "android" | "desktop">(() => {
+    if (typeof navigator === "undefined") return "desktop";
+    const ua = navigator.userAgent || "";
+    if (/iPhone|iPad|iPod/i.test(ua)) return "ios";
+    if (/Android/i.test(ua)) return "android";
+    return "desktop";
+  }, []);
+
   const goManual = async () => {
     if (!user) return;
     // Create an empty active plan and head to plan editor
