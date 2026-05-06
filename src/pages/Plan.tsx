@@ -362,10 +362,10 @@ export default function Plan() {
         <p className="text-sm text-muted-foreground">{days.length} {days.length === 1 ? "day" : "days"}</p>
 
         {/* Day tabs */}
-        <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 pb-1">
-          <DndContext sensors={daySensors} collisionDetection={closestCenter} onDragEnd={onDayDragEnd}>
-            <SortableContext items={days.map((d) => d.id)} strategy={horizontalListSortingStrategy}>
-              <div className="flex gap-2">
+        <div className="-mx-4 mt-5 overflow-x-auto px-4 pb-1">
+          <div className="flex w-max items-center gap-2">
+            <DndContext sensors={daySensors} collisionDetection={closestCenter} onDragEnd={onDayDragEnd}>
+              <SortableContext items={days.map((d) => d.id)} strategy={horizontalListSortingStrategy}>
                 {days.map((d) => (
                   <SortableDayTab
                     key={d.id}
@@ -374,15 +374,15 @@ export default function Plan() {
                     onSelect={() => setActiveDayId(d.id)}
                   />
                 ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-          <button
-            onClick={addDay}
-            className="shrink-0 rounded-xl border-2 border-dashed border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground tap-44"
-          >
-            <Plus className="inline h-4 w-4 mr-1" /> Day
-          </button>
+              </SortableContext>
+            </DndContext>
+            <button
+              onClick={addDay}
+              className="shrink-0 rounded-xl border-2 border-dashed border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground tap-44"
+            >
+              <Plus className="inline h-4 w-4 mr-1" /> Day
+            </button>
+          </div>
         </div>
 
         {activeDay && (
