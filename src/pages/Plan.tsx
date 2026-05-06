@@ -501,6 +501,29 @@ export default function Plan() {
   );
 }
 
+function SortableDayTab({ day, active, onSelect }: { day: Day; active: boolean; onSelect: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: day.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+  return (
+    <button
+      ref={setNodeRef}
+      style={style}
+      onClick={onSelect}
+      {...attributes}
+      {...listeners}
+      className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors tap-44 touch-none cursor-grab active:cursor-grabbing ${
+        active ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"
+      }`}
+    >
+      Day {day.day_number}
+    </button>
+  );
+}
+
 function SortableRow({
   item, onUpdate, onRemove, supersetLetter, canLinkNext, linkedToNext, onToggleSuperset,
 }: {
