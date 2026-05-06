@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Plus, Trash2, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Trash2, GripVertical, GripHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -362,8 +362,8 @@ export default function Plan() {
         <p className="text-sm text-muted-foreground">{days.length} {days.length === 1 ? "day" : "days"}</p>
 
         {/* Day tabs */}
-        <div className="-mx-4 mt-5 overflow-x-auto px-4 pb-1">
-          <div className="flex w-max items-center gap-2">
+        <div className="-mx-4 mt-5 px-4">
+          <DayTabsScroller>
             <DndContext sensors={daySensors} collisionDetection={closestCenter} onDragEnd={onDayDragEnd}>
               <SortableContext items={days.map((d) => d.id)} strategy={horizontalListSortingStrategy}>
                 {days.map((d) => (
@@ -378,11 +378,11 @@ export default function Plan() {
             </DndContext>
             <button
               onClick={addDay}
-              className="shrink-0 rounded-xl border-2 border-dashed border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground tap-44"
+              className="shrink-0 rounded-xl border-2 border-dashed border-border px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-accent"
             >
               <Plus className="inline h-4 w-4 mr-1" /> Day
             </button>
-          </div>
+          </DayTabsScroller>
         </div>
 
         {activeDay && (
@@ -501,6 +501,58 @@ export default function Plan() {
   );
 }
 
+function DayTabsScroller({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [metrics, setMetrics] = useState({ overflow: false, ratio: 1, offset: 0 });
+
+  const update = () => {
+    const el = ref.current;
+    if (!el) return;
+    const { scrollWidth, clientWidth, scrollLeft } = el;
+    const overflow = scrollWidth > clientWidth + 1;
+    const ratio = overflow ? clientWidth / scrollWidth : 1;
+    const maxScroll = Math.max(1, scrollWidth - clientWidth);
+    const offset = overflow ? (scrollLeft / maxScroll) * (1 - ratio) : 0;
+    setMetrics({ overflow, ratio, offset });
+  };
+
+  useEffect(() => {
+    update();
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    Array.from(el.children).forEach((c) => ro.observe(c as Element));
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [children]);
+
+  return (
+    <div>
+      <div
+        ref={ref}
+        className="overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <div className="flex w-max items-end gap-2">{children}</div>
+      </div>
+      <div className="relative mx-1 mt-1 h-1 rounded-full bg-accent/15">
+        {metrics.overflow && (
+          <div
+            className="absolute top-0 h-1 rounded-full bg-accent shadow-[0_0_8px_hsl(var(--accent)/0.6)] transition-[left,width] duration-150"
+            style={{
+              left: `${metrics.offset * 100}%`,
+              width: `${Math.max(metrics.ratio * 100, 12)}%`,
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SortableDayTab({ day, active, onSelect }: { day: Day; active: boolean; onSelect: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: day.id });
   const style = {
@@ -512,9 +564,7 @@ function SortableDayTab({ day, active, onSelect }: { day: Day; active: boolean; 
     <div
       ref={setNodeRef}
       style={style}
-      className={`shrink-0 inline-flex items-center rounded-xl pr-3 pl-1 py-1 text-sm font-bold transition-colors ${
-        active ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"
-      }`}
+      className="shrink-0 flex flex-col items-center"
     >
       <span
         {...attributes}
@@ -522,15 +572,15 @@ function SortableDayTab({ day, active, onSelect }: { day: Day; active: boolean; 
         role="button"
         tabIndex={0}
         aria-label={`Drag Day ${day.day_number}`}
-        className={`flex h-9 w-7 items-center justify-center touch-none cursor-grab active:cursor-grabbing ${
-          active ? "text-accent-foreground/70" : "text-muted-foreground"
-        }`}
+        className="flex h-4 w-full items-center justify-center text-muted-foreground touch-none cursor-grab active:cursor-grabbing hover:text-foreground"
       >
-        <GripVertical className="h-4 w-4" />
+        <GripHorizontal className="h-3.5 w-3.5" />
       </span>
       <button
         onClick={onSelect}
-        className="tap-44 px-1 py-1.5"
+        className={`min-w-[56px] rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
+          active ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"
+        }`}
       >
         Day {day.day_number}
       </button>
