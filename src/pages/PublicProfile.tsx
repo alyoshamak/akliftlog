@@ -79,6 +79,15 @@ export default function PublicProfile() {
         </div>
       </div>
 
+      {!signedIn && (
+        <Link
+          to="/auth?mode=signup"
+          className="mt-4 flex items-center justify-center gap-1 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-bold text-accent hover:bg-accent/15"
+        >
+          Sign up to LiftLog for free →
+        </Link>
+      )}
+
       <div className="mt-5 grid grid-cols-2 gap-3">
         <Stat icon={<Flame className="h-3.5 w-3.5 text-accent" />} label="Streak" value={stats.streak} unit={stats.streak === 1 ? "day" : "days"} />
         <Stat icon={<Calendar className="h-3.5 w-3.5 text-accent" />} label="Total" value={stats.total_workouts} unit="workouts" />
