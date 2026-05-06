@@ -363,28 +363,26 @@ export default function Plan() {
 
         {/* Day tabs */}
         <div className="-mx-4 mt-5 px-4">
-          <div className="overflow-x-auto pb-1 day-tabs-scroll">
-            <div className="flex w-max items-end gap-2">
-              <DndContext sensors={daySensors} collisionDetection={closestCenter} onDragEnd={onDayDragEnd}>
-                <SortableContext items={days.map((d) => d.id)} strategy={horizontalListSortingStrategy}>
-                  {days.map((d) => (
-                    <SortableDayTab
-                      key={d.id}
-                      day={d}
-                      active={activeDayId === d.id}
-                      onSelect={() => setActiveDayId(d.id)}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-              <button
-                onClick={addDay}
-                className="shrink-0 rounded-xl border-2 border-dashed border-border px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-accent"
-              >
-                <Plus className="inline h-4 w-4 mr-1" /> Day
-              </button>
-            </div>
-          </div>
+          <DayTabsScroller>
+            <DndContext sensors={daySensors} collisionDetection={closestCenter} onDragEnd={onDayDragEnd}>
+              <SortableContext items={days.map((d) => d.id)} strategy={horizontalListSortingStrategy}>
+                {days.map((d) => (
+                  <SortableDayTab
+                    key={d.id}
+                    day={d}
+                    active={activeDayId === d.id}
+                    onSelect={() => setActiveDayId(d.id)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+            <button
+              onClick={addDay}
+              className="shrink-0 rounded-xl border-2 border-dashed border-border px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-accent"
+            >
+              <Plus className="inline h-4 w-4 mr-1" /> Day
+            </button>
+          </DayTabsScroller>
         </div>
 
         {activeDay && (
