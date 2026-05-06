@@ -509,18 +509,32 @@ function SortableDayTab({ day, active, onSelect }: { day: Day; active: boolean; 
     opacity: isDragging ? 0.6 : 1,
   };
   return (
-    <button
+    <div
       ref={setNodeRef}
       style={style}
-      onClick={onSelect}
-      {...attributes}
-      {...listeners}
-      className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors tap-44 touch-none cursor-grab active:cursor-grabbing ${
+      className={`shrink-0 inline-flex items-center rounded-xl pr-3 pl-1 py-1 text-sm font-bold transition-colors ${
         active ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"
       }`}
     >
-      Day {day.day_number}
-    </button>
+      <span
+        {...attributes}
+        {...listeners}
+        role="button"
+        tabIndex={0}
+        aria-label={`Drag Day ${day.day_number}`}
+        className={`flex h-9 w-7 items-center justify-center touch-none cursor-grab active:cursor-grabbing ${
+          active ? "text-accent-foreground/70" : "text-muted-foreground"
+        }`}
+      >
+        <GripVertical className="h-4 w-4" />
+      </span>
+      <button
+        onClick={onSelect}
+        className="tap-44 px-1 py-1.5"
+      >
+        Day {day.day_number}
+      </button>
+    </div>
   );
 }
 
