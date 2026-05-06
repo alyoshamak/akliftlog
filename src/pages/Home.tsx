@@ -227,6 +227,8 @@ export default function Home() {
           </button>
         </div>
 
+        <ShareGainzCard />
+
         {recentCount > 0 && (
           <div className="mt-6 text-center">
             <button
