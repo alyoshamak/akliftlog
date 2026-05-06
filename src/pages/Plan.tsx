@@ -501,6 +501,58 @@ export default function Plan() {
   );
 }
 
+function DayTabsScroller({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [metrics, setMetrics] = useState({ overflow: false, ratio: 1, offset: 0 });
+
+  const update = () => {
+    const el = ref.current;
+    if (!el) return;
+    const { scrollWidth, clientWidth, scrollLeft } = el;
+    const overflow = scrollWidth > clientWidth + 1;
+    const ratio = overflow ? clientWidth / scrollWidth : 1;
+    const maxScroll = Math.max(1, scrollWidth - clientWidth);
+    const offset = overflow ? (scrollLeft / maxScroll) * (1 - ratio) : 0;
+    setMetrics({ overflow, ratio, offset });
+  };
+
+  useEffect(() => {
+    update();
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    Array.from(el.children).forEach((c) => ro.observe(c as Element));
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [children]);
+
+  return (
+    <div>
+      <div
+        ref={ref}
+        className="overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <div className="flex w-max items-end gap-2">{children}</div>
+      </div>
+      <div className="relative mx-1 mt-1 h-1 rounded-full bg-accent/15">
+        {metrics.overflow && (
+          <div
+            className="absolute top-0 h-1 rounded-full bg-accent shadow-[0_0_8px_hsl(var(--accent)/0.6)] transition-[left,width] duration-150"
+            style={{
+              left: `${metrics.offset * 100}%`,
+              width: `${Math.max(metrics.ratio * 100, 12)}%`,
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SortableDayTab({ day, active, onSelect }: { day: Day; active: boolean; onSelect: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: day.id });
   const style = {
