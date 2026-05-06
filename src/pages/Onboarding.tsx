@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Dumbbell, Flame, Mountain, Heart, ChevronRight } from "lucide-react";
+import { Dumbbell, Flame, Mountain, Heart, ChevronRight, Smartphone, Share, MoreVertical, PlusSquare } from "lucide-react";
 import PlanCreateOptions from "@/components/PlanCreateOptions";
 
 type Goal = "hypertrophy" | "strength" | "endurance";
@@ -12,7 +12,7 @@ type Goal = "hypertrophy" | "strength" | "endurance";
 export default function Onboarding() {
   const nav = useNavigate();
   const { user } = useAuth();
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [goal, setGoal] = useState<Goal>("hypertrophy");
   const [busy, setBusy] = useState(false);
 
