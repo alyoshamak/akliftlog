@@ -183,6 +183,16 @@
   /* Subtle scrollbar */
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }
+
+  /* Day tab horizontal scroller — accent-colored hint so users know
+     they can swipe to see more days. */
+  .day-tabs-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--accent) / 0.7) transparent;
+  }
+  .day-tabs-scroll::-webkit-scrollbar { height: 4px; }
+  .day-tabs-scroll::-webkit-scrollbar-track { background: hsl(var(--accent) / 0.12); border-radius: 999px; }
+  .day-tabs-scroll::-webkit-scrollbar-thumb { background: hsl(var(--accent) / 0.7); border-radius: 999px; }
 }
 
 @layer components {
