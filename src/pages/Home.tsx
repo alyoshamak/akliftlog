@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ChevronRight, Dumbbell, Flame, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useActiveSession } from "@/hooks/useActiveSession";
+import ShareGainzCard from "@/components/ShareGainzCard";
 import {
   AlertDialog,
   AlertDialogAction,
