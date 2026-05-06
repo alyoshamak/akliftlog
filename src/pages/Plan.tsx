@@ -364,7 +364,7 @@ export default function Plan() {
         {/* Day tabs */}
         <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 pb-1">
           <DndContext sensors={daySensors} collisionDetection={closestCenter} onDragEnd={onDayDragEnd}>
-            <SortableContext items={days.map((d) => d.id)} strategy={undefined as any}>
+            <SortableContext items={days.map((d) => d.id)} strategy={horizontalListSortingStrategy}>
               <div className="flex gap-2">
                 {days.map((d) => (
                   <SortableDayTab
