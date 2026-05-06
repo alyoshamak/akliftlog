@@ -36,9 +36,15 @@ export default function Onboarding() {
     return "desktop";
   }, []);
 
+  const [pendingNav, setPendingNav] = useState<null | (() => void)>(null);
+
+  const goToInstallStep = (next: () => void) => {
+    setPendingNav(() => next);
+    setStep(3);
+  };
+
   const goManual = async () => {
     if (!user) return;
-    // Create an empty active plan and head to plan editor
     setBusy(true);
     const { data: plan, error } = await supabase
       .from("workout_plans")
@@ -58,13 +64,19 @@ export default function Onboarding() {
     }
     await supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
     setBusy(false);
-    nav(`/plan/edit?planId=${plan.id}&first=1`, { replace: true });
+    goToInstallStep(() => nav(`/plan/edit?planId=${plan.id}&first=1`, { replace: true }));
   };
 
   const goUpload = async () => {
     if (!user) return;
     await supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
-    nav("/upload", { replace: true });
+    goToInstallStep(() => nav("/upload", { replace: true }));
+  };
+
+  const goTemplate = async () => {
+    if (!user) return;
+    await supabase.from("profiles").update({ onboarded: true }).eq("id", user.id);
+    goToInstallStep(() => nav("/templates?from=onboarding"));
   };
 
   return (
