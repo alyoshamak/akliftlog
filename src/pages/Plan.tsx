@@ -363,17 +363,20 @@ export default function Plan() {
 
         {/* Day tabs */}
         <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 pb-1">
-          {days.map((d) => (
-            <button
-              key={d.id}
-              onClick={() => setActiveDayId(d.id)}
-              className={`shrink-0 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors tap-44 ${
-                activeDayId === d.id ? "bg-accent text-accent-foreground" : "bg-secondary text-secondary-foreground"
-              }`}
-            >
-              Day {d.day_number}
-            </button>
-          ))}
+          <DndContext sensors={daySensors} collisionDetection={closestCenter} onDragEnd={onDayDragEnd}>
+            <SortableContext items={days.map((d) => d.id)} strategy={undefined as any}>
+              <div className="flex gap-2">
+                {days.map((d) => (
+                  <SortableDayTab
+                    key={d.id}
+                    day={d}
+                    active={activeDayId === d.id}
+                    onSelect={() => setActiveDayId(d.id)}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
           <button
             onClick={addDay}
             className="shrink-0 rounded-xl border-2 border-dashed border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground hover:text-foreground tap-44"
