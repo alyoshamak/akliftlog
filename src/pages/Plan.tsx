@@ -224,6 +224,35 @@ export default function Plan() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const daySensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const onDayDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = days.findIndex((d) => d.id === active.id);
+    const newIdx = days.findIndex((d) => d.id === over.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const reordered = arrayMove(days, oldIdx, newIdx).map((d, i) => ({
+      ...d,
+      day_number: i + 1,
+    }));
+    setDays(reordered);
+    // Persist new day_numbers. Two-phase to avoid unique collisions if a constraint exists.
+    await Promise.all(
+      reordered.map((d, i) =>
+        supabase.from("plan_days").update({ day_number: -(i + 1) }).eq("id", d.id)
+      )
+    );
+    await Promise.all(
+      reordered.map((d, i) =>
+        supabase.from("plan_days").update({ day_number: i + 1 }).eq("id", d.id)
+      )
+    );
+  };
+
   const onDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
