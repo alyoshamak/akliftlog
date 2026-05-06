@@ -123,6 +123,15 @@ export default function PublicPlan() {
         )}
       </div>
 
+      {!user && !authLoading && (
+        <Link
+          to={`/auth?mode=signup&next=${next}`}
+          className="mt-4 flex items-center justify-center gap-1 rounded-lg border border-accent/30 bg-accent/10 px-3 py-2 text-xs font-bold text-accent hover:bg-accent/15"
+        >
+          Sign up to LiftLog for free →
+        </Link>
+      )}
+
       <Button
         onClick={onCopyClick}
         disabled={copying}
