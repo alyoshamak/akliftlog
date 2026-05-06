@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { ChevronRight, Dumbbell, Flame, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useActiveSession } from "@/hooks/useActiveSession";
+import ShareGainzCard from "@/components/ShareGainzCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -225,6 +226,8 @@ export default function Home() {
             <div className="text-xs text-muted-foreground">Build it as you go</div>
           </button>
         </div>
+
+        <ShareGainzCard />
 
         {recentCount > 0 && (
           <div className="mt-6 text-center">
