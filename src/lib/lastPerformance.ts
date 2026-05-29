@@ -17,7 +17,10 @@ export async function fetchLastPerformanceMap(
 ): Promise<Record<string, LastPerformance>> {
   if (exerciseIds.length === 0) return {};
 
-  // Pull all session_exercises (with sets) for these exercises owned by user, ordered by recency
+  // Pull all session_exercises (with sets) for these exercises owned by user.
+  // NOTE: PostgREST's `order({ foreignTable })` only sorts the embedded resource,
+  // not the parent rows — so we must sort client-side by finished_at to truly
+  // get the most-recent completed session per exercise.
   const { data, error } = await supabase
     .from("session_exercises")
     .select(`
@@ -28,13 +31,20 @@ export async function fetchLastPerformanceMap(
     `)
     .in("exercise_id", exerciseIds)
     .eq("session.user_id", userId)
-    .order("started_at", { foreignTable: "session", ascending: false })
-    .limit(200);
+    .not("session.finished_at", "is", null)
+    .limit(2000);
 
   if (error || !data) return {};
 
+  // Sort newest-finished first so the first row we see per exercise is the most recent.
+  const rows = [...(data as any[])].sort(
+    (a, b) =>
+      new Date(b.session?.finished_at ?? 0).getTime() -
+      new Date(a.session?.finished_at ?? 0).getTime()
+  );
+
   const map: Record<string, LastPerformance> = {};
-  for (const row of data as any[]) {
+  for (const row of rows) {
     if (!row.session?.finished_at) continue; // only completed sessions
     if (map[row.exercise_id]) continue;
     if (!row.sets || row.sets.length === 0) continue;
