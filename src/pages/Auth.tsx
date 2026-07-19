@@ -102,9 +102,36 @@ export default function Auth() {
           </Button>
         </form>
 
+        {mode === "signin" && (
+          <button
+            type="button"
+            className="mt-4 text-sm text-muted-foreground underline-offset-4 hover:underline"
+            onClick={async () => {
+              if (!email) {
+                toast.error("Enter your email above, then tap Forgot password.");
+                return;
+              }
+              setBusy(true);
+              try {
+                const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                  redirectTo: `${window.location.origin}/reset-password`,
+                });
+                if (error) throw error;
+                toast.success("Reset email sent. Check your inbox (and spam).");
+              } catch (err: any) {
+                toast.error(err.message ?? "Could not send reset email");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Forgot password?
+          </button>
+        )}
+
         <button
           type="button"
-          className="mt-6 text-sm text-muted-foreground underline-offset-4 hover:underline"
+          className="mt-4 text-sm text-muted-foreground underline-offset-4 hover:underline text-left"
           onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
         >
           {mode === "signin" ? "Need an account? Sign up" : "Already have one? Sign in"}
