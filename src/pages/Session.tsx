@@ -590,7 +590,14 @@ function ExerciseCard({
           </span>
         )}
         <div className="flex-1 min-w-0">
-          <div className="font-bold truncate">{ex.exercise.name}</div>
+          <button
+            onClick={onHistory}
+            className="block w-full text-left font-bold truncate hover:text-accent transition-colors tap-44"
+            aria-label={`View history for ${ex.exercise.name}`}
+            title="View exercise history"
+          >
+            {ex.exercise.name}
+          </button>
           {lastSummary ? (
             <div className="text-xs text-muted-foreground truncate">Last: {lastSummary}</div>
           ) : (
