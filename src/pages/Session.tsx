@@ -550,7 +550,7 @@ export default function Session() {
 }
 
 function ExerciseCard({
-  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove, onNotes, noteCount,
+  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove, onNotes, onHistory, noteCount,
 }: {
   ex: SessionExercise;
   sets: SetRow[];
@@ -564,6 +564,7 @@ function ExerciseCard({
   onSwap: () => void;
   onRemove: () => void;
   onNotes: () => void;
+  onHistory: () => void;
   noteCount: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ex.id });
