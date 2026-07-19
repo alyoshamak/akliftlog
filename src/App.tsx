@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import RequireAuth from "@/components/RequireAuth";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Onboarding from "./pages/Onboarding";
 import Home from "./pages/Home";
 import Plan from "./pages/Plan";
@@ -32,6 +33,7 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/u/:slug" element={<PublicProfile />} />
             <Route path="/p/:slug" element={<PublicPlan />} />
             <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
