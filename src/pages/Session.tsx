@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import ExercisePicker from "@/components/ExercisePicker";
 import ExerciseNotesDialog from "@/components/ExerciseNotesDialog";
+import ExerciseHistoryDialog from "@/components/ExerciseHistoryDialog";
 import LeaveWorkoutDialog from "@/components/LeaveWorkoutDialog";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -54,6 +55,7 @@ export default function Session() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [swapForId, setSwapForId] = useState<string | null>(null);
   const [notesFor, setNotesFor] = useState<{ id: string; name: string } | null>(null);
+  const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
   const [reorderMode, setReorderMode] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -427,6 +429,7 @@ export default function Session() {
                     onSwap={() => setSwapForId(ex.id)}
                     onRemove={() => removeExercise(ex.id)}
                     onNotes={() => setNotesFor({ id: ex.exercise_id, name: ex.exercise.name })}
+                    onHistory={() => setHistoryFor({ id: ex.exercise_id, name: ex.exercise.name })}
                     noteCount={noteCounts[ex.exercise_id] ?? 0}
                   />
                 );
@@ -463,6 +466,7 @@ export default function Session() {
                             onSwap={() => setSwapForId(gex.id)}
                             onRemove={() => removeExercise(gex.id)}
                             onNotes={() => setNotesFor({ id: gex.exercise_id, name: gex.exercise.name })}
+                            onHistory={() => setHistoryFor({ id: gex.exercise_id, name: gex.exercise.name })}
                             noteCount={noteCounts[gex.exercise_id] ?? 0}
                           />
                         );
@@ -541,12 +545,19 @@ export default function Session() {
           sessionId={sessionId}
         />
       )}
+
+      <ExerciseHistoryDialog
+        open={!!historyFor}
+        onOpenChange={(o) => { if (!o) setHistoryFor(null); }}
+        exerciseId={historyFor?.id ?? null}
+        exerciseName={historyFor?.name ?? ""}
+      />
     </div>
   );
 }
 
 function ExerciseCard({
-  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove, onNotes, noteCount,
+  ex, sets, last, reorderMode, supersetLetter, onCheck, onChangeWeight, onChangeReps, onAddSet, onSwap, onRemove, onNotes, onHistory, noteCount,
 }: {
   ex: SessionExercise;
   sets: SetRow[];
@@ -560,6 +571,7 @@ function ExerciseCard({
   onSwap: () => void;
   onRemove: () => void;
   onNotes: () => void;
+  onHistory: () => void;
   noteCount: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: ex.id });
@@ -585,7 +597,14 @@ function ExerciseCard({
           </span>
         )}
         <div className="flex-1 min-w-0">
-          <div className="font-bold truncate">{ex.exercise.name}</div>
+          <button
+            onClick={onHistory}
+            className="block w-full text-left font-bold truncate hover:text-accent transition-colors tap-44"
+            aria-label={`View history for ${ex.exercise.name}`}
+            title="View exercise history"
+          >
+            {ex.exercise.name}
+          </button>
           {lastSummary ? (
             <div className="text-xs text-muted-foreground truncate">Last: {lastSummary}</div>
           ) : (
