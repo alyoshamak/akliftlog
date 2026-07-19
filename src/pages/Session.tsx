@@ -466,6 +466,7 @@ export default function Session() {
                             onSwap={() => setSwapForId(gex.id)}
                             onRemove={() => removeExercise(gex.id)}
                             onNotes={() => setNotesFor({ id: gex.exercise_id, name: gex.exercise.name })}
+                            onHistory={() => setHistoryFor({ id: gex.exercise_id, name: gex.exercise.name })}
                             noteCount={noteCounts[gex.exercise_id] ?? 0}
                           />
                         );
