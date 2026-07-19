@@ -36,27 +36,39 @@ export async function fetchLastPerformanceMap(
 
   if (error || !data) return {};
 
-  // Sort newest-finished first so the first row we see per exercise is the most recent.
-  const rows = [...(data as any[])].sort(
-    (a, b) =>
-      new Date(b.session?.finished_at ?? 0).getTime() -
-      new Date(a.session?.finished_at ?? 0).getTime()
-  );
+  // Group rows by exercise, pick the session containing the heaviest set (PR).
+  const byExercise: Record<string, any[]> = {};
+  for (const row of data as any[]) {
+    if (!row.session?.finished_at) continue;
+    if (!row.sets || row.sets.length === 0) continue;
+    (byExercise[row.exercise_id] ||= []).push(row);
+  }
 
   const map: Record<string, LastPerformance> = {};
-  for (const row of rows) {
-    if (!row.session?.finished_at) continue; // only completed sessions
-    if (map[row.exercise_id]) continue;
-    if (!row.sets || row.sets.length === 0) continue;
-    const sets = [...row.sets].sort((a, b) => a.set_number - b.set_number).map((s: any) => ({
+  for (const [exId, rows] of Object.entries(byExercise)) {
+    let best: any = null;
+    let bestWeight = -Infinity;
+    let bestDate = 0;
+    for (const row of rows) {
+      const maxW = Math.max(...row.sets.map((s: any) => Number(s.weight) || 0));
+      const dt = new Date(row.session.finished_at).getTime();
+      // Prefer heavier PR; tie-break by most recent so PR reflects latest occurrence.
+      if (maxW > bestWeight || (maxW === bestWeight && dt > bestDate)) {
+        best = row;
+        bestWeight = maxW;
+        bestDate = dt;
+      }
+    }
+    if (!best) continue;
+    const sets = [...best.sets].sort((a, b) => a.set_number - b.set_number).map((s: any) => ({
       weight: Number(s.weight),
       reps: s.reps,
       unit: s.unit,
     }));
-    map[row.exercise_id] = {
-      exercise_id: row.exercise_id,
-      session_id: row.session.id,
-      performed_at: row.session.finished_at,
+    map[exId] = {
+      exercise_id: exId,
+      session_id: best.session.id,
+      performed_at: best.session.finished_at,
       sets,
     };
   }
@@ -64,26 +76,20 @@ export async function fetchLastPerformanceMap(
 }
 
 /**
- * Suggest weight/reps for an exercise's set based on last performance.
- * Rule: match last; if every set hit target reps, nudge.
+ * Suggest weight/reps for an exercise's set based on the user's PR session.
+ * No progressive-overload nudge — always prefill with the PR set values so the
+ * user consciously decides whether to push heavier.
  */
 export function suggestSet(
   last: LastPerformance | undefined,
   targetReps: number,
   setIndex: number,
-  opts: { isCompound: boolean; goal: "hypertrophy" | "strength" | "endurance" }
+  _opts: { isCompound: boolean; goal: "hypertrophy" | "strength" | "endurance" }
 ): { weight: number; reps: number } {
   if (!last || last.sets.length === 0) {
     return { weight: 0, reps: targetReps };
   }
-  const lastSet = last.sets[setIndex] ?? last.sets[last.sets.length - 1];
-  const allHit = last.sets.every((s) => s.reps >= targetReps);
-  if (!allHit) return { weight: lastSet.weight, reps: targetReps };
-
-  // Nudge: weight bump for strength/hypertrophy, rep bump for endurance
-  if (opts.goal === "endurance") {
-    return { weight: lastSet.weight, reps: targetReps + 1 };
-  }
-  const inc = opts.isCompound ? 5 : 2.5;
-  return { weight: lastSet.weight + inc, reps: targetReps };
+  const prSet = last.sets[setIndex] ?? last.sets[last.sets.length - 1];
+  return { weight: prSet.weight, reps: prSet.reps || targetReps };
 }
+
