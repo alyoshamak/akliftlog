@@ -55,6 +55,7 @@ export default function Session() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [swapForId, setSwapForId] = useState<string | null>(null);
   const [notesFor, setNotesFor] = useState<{ id: string; name: string } | null>(null);
+  const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
   const [reorderMode, setReorderMode] = useState(false);
   const [finishing, setFinishing] = useState(false);
