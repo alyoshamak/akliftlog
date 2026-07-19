@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import ExercisePicker from "@/components/ExercisePicker";
 import ExerciseNotesDialog from "@/components/ExerciseNotesDialog";
+import ExerciseHistoryDialog from "@/components/ExerciseHistoryDialog";
 import LeaveWorkoutDialog from "@/components/LeaveWorkoutDialog";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
