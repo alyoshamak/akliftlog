@@ -545,6 +545,13 @@ export default function Session() {
           sessionId={sessionId}
         />
       )}
+
+      <ExerciseHistoryDialog
+        open={!!historyFor}
+        onOpenChange={(o) => { if (!o) setHistoryFor(null); }}
+        exerciseId={historyFor?.id ?? null}
+        exerciseName={historyFor?.name ?? ""}
+      />
     </div>
   );
 }
