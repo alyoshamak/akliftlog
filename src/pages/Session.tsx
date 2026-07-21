@@ -15,6 +15,8 @@ import ExercisePicker from "@/components/ExercisePicker";
 import ExerciseNotesDialog from "@/components/ExerciseNotesDialog";
 import ExerciseHistoryDialog from "@/components/ExerciseHistoryDialog";
 import LeaveWorkoutDialog from "@/components/LeaveWorkoutDialog";
+import { PrCelebration } from "@/components/PrCelebration";
+
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   DragEndEvent, KeyboardSensor,
