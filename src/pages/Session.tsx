@@ -547,6 +547,17 @@ export default function Session() {
         onCancel={cancelWorkout}
       />
 
+      <PrCelebration
+        show={!!pr}
+        exerciseName={pr?.name ?? ""}
+        weight={pr?.weight ?? 0}
+        reps={pr?.reps ?? 0}
+        unit={pr?.unit ?? "lb"}
+        onDone={() => setPr(null)}
+      />
+
+
+
       {notesFor && (
         <ExerciseNotesDialog
           open={!!notesFor}
