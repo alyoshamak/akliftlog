@@ -193,6 +193,21 @@ export default function Session() {
       .select()
       .maybeSingle();
     if (error) return toast.error(error.message);
+    // PR check: compare against historical PR (from `last` map, which excludes
+    // the in-progress session) AND the best weight completed so far this session
+    // for this exercise, so we celebrate each new all-time high only once.
+    const historicalPr = Math.max(
+      0,
+      ...((last[ex.exercise_id]?.sets ?? []).map((s) => Number(s.weight) || 0)),
+    );
+    const inSessionBest = Math.max(
+      0,
+      ...(setsByExercise[ex.id] ?? [])
+        .filter((s, i) => s.completed && i !== idx)
+        .map((s) => Number(s.weight) || 0),
+    );
+    const beatsAllTime = row.weight > 0 && row.weight > Math.max(historicalPr, inSessionBest);
+
     // Mark this set complete and pre-fill the next uncompleted set with same weight/reps
     setSetsByExercise((prev) => {
       const cur = prev[ex.id] ?? [];
@@ -205,6 +220,11 @@ export default function Session() {
       });
       return { ...prev, [ex.id]: updated };
     });
+
+    if (beatsAllTime) {
+      setPr({ name: ex.exercise.name, weight: row.weight, reps: row.reps, unit: row.unit });
+    }
+
   };
 
   const addSetRow = (ex: SessionExercise) => {
