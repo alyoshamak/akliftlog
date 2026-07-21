@@ -602,16 +602,18 @@ function SortableRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <div ref={setNodeRef} style={style} className={`surface-card p-3 relative ${isDragging ? "select-none" : ""}`}>
-      <div className="flex items-start gap-2">
+    <div ref={setNodeRef} style={style} className="surface-card p-3 relative">
+      <div className="flex items-start gap-2 select-none">
         <button
           {...attributes}
           {...listeners}
-          className="flex h-10 w-8 shrink-0 items-center justify-center text-muted-foreground touch-none cursor-grab active:cursor-grabbing"
+          onMouseDown={(e) => e.preventDefault()}
+          className="flex h-10 w-8 shrink-0 items-center justify-center text-muted-foreground touch-none cursor-grab active:cursor-grabbing select-none"
           aria-label="Drag to reorder"
         >
           <GripVertical className="h-4 w-4" />
         </button>
+
         <div className="flex-1 min-w-0 py-1">
           <div className="flex items-center gap-1.5">
             {supersetLetter && (
