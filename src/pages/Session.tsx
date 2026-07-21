@@ -60,6 +60,8 @@ export default function Session() {
   const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
   const [reorderMode, setReorderMode] = useState(false);
+  const [pr, setPr] = useState<{ name: string; weight: number; reps: number; unit: string } | null>(null);
+
   const [finishing, setFinishing] = useState(false);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [planDayId, setPlanDayId] = useState<string | null>(null);
