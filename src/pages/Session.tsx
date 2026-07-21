@@ -18,7 +18,7 @@ import LeaveWorkoutDialog from "@/components/LeaveWorkoutDialog";
 import { PrCelebration } from "@/components/PrCelebration";
 
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  DndContext, closestCenter, MouseSensor, TouchSensor, useSensor, useSensors,
   DragEndEvent, KeyboardSensor,
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy, useSortable, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -342,7 +342,8 @@ export default function Session() {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 140, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -619,10 +620,16 @@ function ExerciseCard({
   }, [last]);
 
   return (
-    <div ref={setNodeRef} style={style} className="surface-card overflow-hidden">
+    <div ref={setNodeRef} style={style} className="surface-card drag-item overflow-hidden">
       <div className="flex items-center gap-2 p-4 pb-3">
         {reorderMode && (
-          <button {...attributes} {...listeners} className="text-muted-foreground touch-none cursor-grab active:cursor-grabbing tap-44">
+          <button
+            {...attributes}
+            {...listeners}
+            onMouseDown={(e) => e.preventDefault()}
+            className="drag-handle flex h-12 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground cursor-grab active:cursor-grabbing tap-44 hover:bg-secondary/70 hover:text-foreground"
+            aria-label="Drag to reorder exercise"
+          >
             <GripVertical className="h-4 w-4" />
           </button>
         )}
