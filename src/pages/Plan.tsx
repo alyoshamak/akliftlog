@@ -564,7 +564,7 @@ function SortableDayTab({ day, active, onSelect }: { day: Day; active: boolean; 
     <div
       ref={setNodeRef}
       style={style}
-      className="shrink-0 flex flex-col items-center"
+      className="shrink-0 flex flex-col items-center select-none"
     >
       <span
         {...attributes}
@@ -572,10 +572,11 @@ function SortableDayTab({ day, active, onSelect }: { day: Day; active: boolean; 
         role="button"
         tabIndex={0}
         aria-label={`Drag Day ${day.day_number}`}
-        className="flex h-4 w-full items-center justify-center text-muted-foreground touch-none cursor-grab active:cursor-grabbing hover:text-foreground"
+        className="flex h-4 w-full items-center justify-center text-muted-foreground touch-none cursor-grab active:cursor-grabbing hover:text-foreground select-none"
       >
         <GripHorizontal className="h-3.5 w-3.5" />
       </span>
+
       <button
         onClick={onSelect}
         className={`min-w-[56px] rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
@@ -603,15 +604,17 @@ function SortableRow({
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
     <div ref={setNodeRef} style={style} className="surface-card p-3 relative">
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2 select-none">
         <button
           {...attributes}
           {...listeners}
-          className="flex h-10 w-8 shrink-0 items-center justify-center text-muted-foreground touch-none cursor-grab active:cursor-grabbing"
+          onMouseDown={(e) => e.preventDefault()}
+          className="flex h-10 w-8 shrink-0 items-center justify-center text-muted-foreground touch-none cursor-grab active:cursor-grabbing select-none"
           aria-label="Drag to reorder"
         >
           <GripVertical className="h-4 w-4" />
         </button>
+
         <div className="flex-1 min-w-0 py-1">
           <div className="flex items-center gap-1.5">
             {supersetLetter && (
