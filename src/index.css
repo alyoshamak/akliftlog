@@ -220,6 +220,19 @@
     animation: checkBurst 320ms var(--transition-snap);
   }
 
+  .drag-item,
+  .drag-item * {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .drag-handle {
+    touch-action: none;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
   @keyframes checkBurst {
     0% { transform: scale(1); }
     40% { transform: scale(1.18); }
