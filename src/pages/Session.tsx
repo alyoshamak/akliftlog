@@ -15,6 +15,8 @@ import ExercisePicker from "@/components/ExercisePicker";
 import ExerciseNotesDialog from "@/components/ExerciseNotesDialog";
 import ExerciseHistoryDialog from "@/components/ExerciseHistoryDialog";
 import LeaveWorkoutDialog from "@/components/LeaveWorkoutDialog";
+import { PrCelebration } from "@/components/PrCelebration";
+
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   DragEndEvent, KeyboardSensor,
@@ -58,6 +60,8 @@ export default function Session() {
   const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
   const [noteCounts, setNoteCounts] = useState<Record<string, number>>({});
   const [reorderMode, setReorderMode] = useState(false);
+  const [pr, setPr] = useState<{ name: string; weight: number; reps: number; unit: string } | null>(null);
+
   const [finishing, setFinishing] = useState(false);
   const [startedAt, setStartedAt] = useState<string | null>(null);
   const [planDayId, setPlanDayId] = useState<string | null>(null);
@@ -189,6 +193,21 @@ export default function Session() {
       .select()
       .maybeSingle();
     if (error) return toast.error(error.message);
+    // PR check: compare against historical PR (from `last` map, which excludes
+    // the in-progress session) AND the best weight completed so far this session
+    // for this exercise, so we celebrate each new all-time high only once.
+    const historicalPr = Math.max(
+      0,
+      ...((last[ex.exercise_id]?.sets ?? []).map((s) => Number(s.weight) || 0)),
+    );
+    const inSessionBest = Math.max(
+      0,
+      ...(setsByExercise[ex.id] ?? [])
+        .filter((s, i) => s.completed && i !== idx)
+        .map((s) => Number(s.weight) || 0),
+    );
+    const beatsAllTime = row.weight > 0 && row.weight > Math.max(historicalPr, inSessionBest);
+
     // Mark this set complete and pre-fill the next uncompleted set with same weight/reps
     setSetsByExercise((prev) => {
       const cur = prev[ex.id] ?? [];
@@ -201,6 +220,11 @@ export default function Session() {
       });
       return { ...prev, [ex.id]: updated };
     });
+
+    if (beatsAllTime) {
+      setPr({ name: ex.exercise.name, weight: row.weight, reps: row.reps, unit: row.unit });
+    }
+
   };
 
   const addSetRow = (ex: SessionExercise) => {
@@ -522,6 +546,17 @@ export default function Session() {
         onPause={pauseWorkout}
         onCancel={cancelWorkout}
       />
+
+      <PrCelebration
+        show={!!pr}
+        exerciseName={pr?.name ?? ""}
+        weight={pr?.weight ?? 0}
+        reps={pr?.reps ?? 0}
+        unit={pr?.unit ?? "lb"}
+        onDone={() => setPr(null)}
+      />
+
+
 
       {notesFor && (
         <ExerciseNotesDialog
