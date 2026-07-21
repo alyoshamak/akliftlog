@@ -602,7 +602,7 @@ function SortableRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
   return (
-    <div ref={setNodeRef} style={style} className="surface-card p-3 relative">
+    <div ref={setNodeRef} style={style} className={`surface-card p-3 relative ${isDragging ? "select-none" : ""}`}>
       <div className="flex items-start gap-2">
         <button
           {...attributes}
